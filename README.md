@@ -1,20 +1,58 @@
-# TOKO AZKIA — Sistem POS + Toko Online
+# TOKO AZQIA — Sistem POS + Toko Online
 
-**Versi: TOKO AZKIA V1.0.0**
+**Versi: TOKO AZQIA V2.0.0** (upgrade dari TOKO AZKIA V1.0.0)
 *"Melayani Kebutuhan, Membangun Kepercayaan."*
 
-Sistem manajemen toko lengkap untuk TOKO AZKIA: kasir (POS), stok, pembelian, toko online
-(pickup & delivery), laporan, hingga backup — dibangun di atas Google Sheets + Google Apps
-Script (backend) dan PWA statis (frontend, di-hosting gratis di GitHub Pages).
+Sistem manajemen toko lengkap untuk TOKO AZQIA: kasir (POS) dengan Mixed Payment & satuan/
+konversi produk, stok, barang masuk, piutang pelanggan, hutang supplier, toko online (pickup &
+delivery), laporan, hingga backup — dibangun di atas Google Sheets + Google Apps Script
+(backend) dan PWA statis (frontend, di-hosting gratis di GitHub Pages).
 
 Dikembangkan oleh **FATUR RIZKY FAHRIANSYAH**, 2026.
+
+## Status Upgrade V1 → V2 (Baca Ini Dulu)
+
+Paket ini adalah **upgrade** dari TOKO AZKIA V1.0.0 yang sudah pernah di-deploy. Database
+(Spreadsheet) dan deployment Apps Script yang SUDAH ADA tetap dipakai - **JANGAN** membuat
+Spreadsheet atau deployment baru dari nol. Langkah upgrade:
+
+1. Salin ulang **seluruh 31 file `.gs`** di `backend/` ke project Apps Script yang sudah ada
+   (timpa isi lama file demi file - lihat `docs/DEPLOYMENT.md` TAHAP 7 untuk caranya).
+2. Di Apps Script Editor, buka `99_Setup.gs`, jalankan fungsi **`upgradeToAzqia()`** (BUKAN
+   `setupDatabase()`) SATU KALI - ini aman, hanya menambah sheet/kolom baru tanpa menghapus data
+   yang sudah ada.
+3. Deploy ulang Web App (**Deploy → Manage deployments → Edit → New version → Deploy**).
+4. Upload ulang **seluruh isi folder `frontend/`** ke repository GitHub Anda (menimpa file lama)
+   - hampir semua file berubah karena rebranding AZKIA → AZQIA dan fitur baru.
+5. Karena nama localStorage berubah (`azkia_...` → `azqia_...`), semua staf perlu **login ulang**
+   satu kali setelah upgrade - ini normal, bukan error.
+
+Fitur baru di V2.0.0: SKU & barcode otomatis, satuan produk & konversi (mis. 1 DUS = 40 PCS),
+Piutang Pelanggan, Hutang Supplier, Mixed Payment (split Tunai+QRIS, dst.), scan barcode via
+kamera HP, cetak label barcode, Pusat Notifikasi, Riwayat Transaksi terpisah dari Kasir, upload
+QRIS lewat Pengaturan, idempotency saat Bayar (anti transaksi ganda akibat double-click), modul
+**Promo** (persentase/nominal/harga khusus/qty-based, otomatis diterapkan di Kasir & Toko Online),
+modul **Pesan** (tanya-jawab pembeli per pesanan + pesan internal tim), halaman **Profil** (ganti
+password) dan **PIN keamanan 6 digit** (konfirmasi tambahan saat Void transaksi), serta
+**multi-rekening Transfer Bank** di Pengaturan.
+
+Karena ada penambahan Sheet baru (Promo/Pesan/Rekening Bank) dan kolom baru (PIN di data
+pengguna), jalankan ulang `upgradeToAzqia()` sekali lagi setelah upload backend terbaru - fungsi
+ini aman dijalankan berkali-kali dan hanya menambah yang belum ada.
+
+**Belum dikerjakan** (di luar prioritas utama Master Specification, tersisa untuk patch
+berikutnya jika dibutuhkan): sinkronisasi lintas perangkat real-time, notifikasi suara khusus
+perangkat, dan integrasi barcode scanner USB/Bluetooth fisik (saat ini yang berfungsi penuh
+adalah scan kamera HP dan pencarian manual; scanner USB/Bluetooth pada dasarnya mengetik seperti
+keyboard sehingga sudah bisa dipakai lewat kolom pencarian Kasir, tapi belum ada pengujian
+khusus terhadap perangkat scanner tertentu).
 
 ---
 
 ## Isi Paket
 
 ```
-toko-azkia-v1/
+toko-azqia-v2/
 ├── README.md                 <- Anda di sini
 ├── CHANGELOG.md
 ├── frontend/                  <- Upload ISI folder ini ke GitHub Pages
