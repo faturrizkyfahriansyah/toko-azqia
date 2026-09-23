@@ -4,7 +4,7 @@
  */
 window.Api = (function () {
   function baseUrl() {
-    var url = (window.TOKO_AZKIA_CONFIG && window.TOKO_AZKIA_CONFIG.apiBaseUrl) || '';
+    var url = (window.TOKO_AZQIA_CONFIG && window.TOKO_AZQIA_CONFIG.apiBaseUrl) || '';
     if (!url) throw new Error('API belum dikonfigurasi. Isi apiBaseUrl di js/config.js (lihat docs/DEPLOYMENT.md TAHAP 11).');
     return url;
   }
