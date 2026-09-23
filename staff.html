@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOKO AZKIA - Staf</title>
+<!--
+  Halaman ini SENGAJA TIDAK memakai manifest.json (tidak ada <link rel="manifest"> di sini),
+  supaya saat staf menekan "Tambahkan ke Layar Utama" dari halaman ini, browser membuat
+  ikon pintasan yang menuju PERSIS ke halaman ini (staff.html) - bukan mengikuti start_url
+  toko online di manifest.json (yang selalu menuju halaman pembeli).
+-->
+<meta name="theme-color" content="#0B3D91">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="icon" href="assets/icons/icon-192.png">
+<script>
+  location.replace('./index.html#/internal/login');
+</script>
+</head>
+<body style="font-family:system-ui,sans-serif;text-align:center;padding:60px 20px;color:#1f2328;">
+  <p>Membuka halaman staf TOKO AZKIA...</p>
+  <p><a href="./index.html#/internal/login">Klik di sini jika tidak otomatis terbuka</a></p>
+</body>
+</html>
