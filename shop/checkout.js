@@ -36,7 +36,7 @@ Modules.checkout = (function () {
       var btn = e.target.querySelector('button'); btn.disabled = true; btn.textContent = 'Memproses...';
       Api.call('public.checkout', fd).then(function (result) {
         window.Cart.clear();
-        sessionStorage.setItem('azkia_last_order', JSON.stringify(result));
+        sessionStorage.setItem('azqia_last_order', JSON.stringify(result));
         Router.navigate('#/shop/payment');
         Router.render();
       }).catch(function (err) {
