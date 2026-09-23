@@ -5,7 +5,8 @@ window.Modules = window.Modules || {};
 Modules.inventory = (function () {
   var activeTab = 'ledger';
 
-  function render(container) {
+  function render(container, initialTab) {
+    if (initialTab) activeTab = initialTab;
     container.innerHTML =
       '<h1>Stok</h1>' +
       '<div class="tabs">' +

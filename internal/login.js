@@ -7,7 +7,7 @@ Modules.login = {
     if (Auth.isLoggedIn()) { Router.navigate('#/internal/dashboard'); return; }
     container.innerHTML =
       '<div class="card" style="margin-top:40px;">' +
-      '<h1 style="text-align:center;color:var(--red);">TOKO AZKIA</h1>' +
+      '<h1 style="text-align:center;color:var(--red);">TOKO AZQIA</h1>' +
       '<p style="text-align:center;">Masuk sebagai Pemilik atau Pengelola</p>' +
       '<form id="login-form">' +
       '<div class="field"><label>Username</label><input name="username" required autocomplete="username"></div>' +

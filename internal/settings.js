@@ -7,9 +7,10 @@ window.Modules = window.Modules || {};
 Modules.settings = (function () {
   var activeTab = 'toko';
 
-  function render(container) {
+  function render(container, initialTab) {
+    if (initialTab) activeTab = initialTab;
     container.innerHTML = '<h1>Pengaturan & Sistem</h1><div class="tabs">' +
-      tabBtn('toko', 'Profil Toko') + tabBtn('ongkir', 'Ongkir') + tabBtn('printer', 'Printer') +
+      tabBtn('toko', 'Profil Toko') + tabBtn('ongkir', 'Ongkir') + tabBtn('pembayaran', 'Pembayaran') + tabBtn('printer', 'Printer') +
       tabBtn('audit', 'Audit Log') + tabBtn('backup', 'Backup') + '</div><div id="tab-body"></div>';
     Utils.qsa('[data-tab]', container).forEach(function (b) { b.addEventListener('click', function () { activeTab = b.getAttribute('data-tab'); render(container); }); });
     return renderTab();
@@ -20,6 +21,7 @@ Modules.settings = (function () {
     var body = document.getElementById('tab-body');
     if (activeTab === 'toko') return renderToko(body);
     if (activeTab === 'ongkir') return renderOngkir(body);
+    if (activeTab === 'pembayaran') return renderPembayaran(body);
     if (activeTab === 'printer') return renderPrinter(body);
     if (activeTab === 'audit') return renderAudit(body);
     return renderBackup(body);
@@ -57,6 +59,53 @@ Modules.settings = (function () {
       body.querySelector('#f').addEventListener('submit', function (e) {
         e.preventDefault();
         Api.call('delivery.update', Object.fromEntries(new FormData(e.target).entries())).then(function () { Utils.toast('Pengaturan ongkir disimpan.', 'success'); });
+      });
+    });
+  }
+
+  function renderPembayaran(body) {
+    return Promise.all([Api.call('settings.get', {}), Api.call('bankAccount.list', {})]).then(function (r) {
+      var d = r[0]; var banks = r[1].bank_accounts;
+      var current = (d.settings && d.settings.qris_image_url) || '';
+      body.innerHTML = '<h3>QRIS Toko AZQIA</h3>' +
+        '<p class="muted">Upload gambar QRIS milik toko. QRIS ini akan ditampilkan di Kasir (metode QRIS) dan halaman Checkout toko online.</p>' +
+        (current ? '<img src="' + current + '" alt="QRIS saat ini" style="max-width:220px;display:block;margin-bottom:12px;border:1px solid var(--border);border-radius:8px;">' : '<p class="hint">Belum ada QRIS terupload.</p>') +
+        '<div class="field"><label>Upload Gambar QRIS (PNG/JPG, maks 3MB)</label><input type="file" id="qris-file" accept="image/png,image/jpeg"></div>' +
+        '<button class="btn btn-primary" id="qris-upload-btn">Upload QRIS</button>' +
+        '<div class="divider"></div><h3>Rekening Transfer Bank</h3><p class="muted">Bisa lebih dari satu rekening, aktif/nonaktifkan sesuai kebutuhan.</p>' +
+        '<div id="bank-list">' + banks.map(function (b) {
+          var active = String(b.active) === 'true' || b.active === true;
+          return '<div class="row" style="padding:8px 0;border-bottom:1px solid var(--border);"><div><strong>' + Utils.escapeHtml(b.bank_name) + '</strong> - ' + Utils.escapeHtml(b.account_number) + '<div class="muted">a.n. ' + Utils.escapeHtml(b.account_holder) + '</div></div>' +
+            '<button class="btn btn-outline btn-sm" data-toggle-bank="' + b.bank_account_id + '" data-active="' + active + '">' + (active ? 'Nonaktifkan' : 'Aktifkan') + '</button></div>';
+        }).join('') + '</div>' +
+        '<div class="field-row" style="margin-top:10px;"><input id="bank-name" placeholder="Nama Bank"><input id="bank-number" placeholder="No. Rekening"><input id="bank-holder" placeholder="Atas Nama"></div>' +
+        '<button class="btn btn-outline btn-block" id="bank-add">+ Tambah Rekening</button>';
+      body.querySelector('#qris-upload-btn').addEventListener('click', function () {
+        var input = body.querySelector('#qris-file');
+        if (!input.files || !input.files[0]) { Utils.toast('Pilih file gambar dahulu.', 'error'); return; }
+        var file = input.files[0];
+        var reader = new FileReader();
+        reader.onload = function () {
+          var base64 = reader.result.split(',')[1];
+          Api.call('qris.upload', { base64: base64, mimeType: file.type }).then(function () {
+            Utils.toast('QRIS berhasil diupload.', 'success'); renderTab();
+          }).catch(function (err) { Utils.toast(err.message, 'error'); });
+        };
+        reader.readAsDataURL(file);
+      });
+      Utils.qsa('[data-toggle-bank]', body).forEach(function (b) {
+        b.addEventListener('click', function () {
+          Api.call('bankAccount.update', { bank_account_id: b.getAttribute('data-toggle-bank'), active: b.getAttribute('data-active') !== 'true' }).then(function () { renderTab(); });
+        });
+      });
+      body.querySelector('#bank-add').addEventListener('click', function () {
+        var bankName = body.querySelector('#bank-name').value.trim();
+        var number = body.querySelector('#bank-number').value.trim();
+        var holder = body.querySelector('#bank-holder').value.trim();
+        if (!bankName || !number || !holder) { Utils.toast('Lengkapi semua kolom rekening.', 'error'); return; }
+        Api.call('bankAccount.create', { bank_name: bankName, account_number: number, account_holder: holder }).then(function () {
+          Utils.toast('Rekening ditambahkan.', 'success'); renderTab();
+        }).catch(function (err) { Utils.toast(err.message, 'error'); });
       });
     });
   }
