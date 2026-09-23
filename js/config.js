@@ -5,5 +5,5 @@
  * Contoh: https://script.google.com/macros/s/AKfycbXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec
  */
 window.TOKO_AZKIA_CONFIG = {
-  apiBaseUrl: '' // <-- GANTI dengan URL Web App Anda. Kosong = aplikasi menampilkan pesan konfigurasi.
+  apiBaseUrl:https://script.google.com/macros/s/AKfycbxJM_-KILXmJhOaZHjD40-CXGv620apnKLyYnMXZD3mFI6QNIDkz_leZHQwr6JQlbRISQ/exec
 };
