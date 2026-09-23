@@ -27,7 +27,7 @@ Modules.settings = (function () {
 
   function renderToko(body) {
     return Api.call('settings.get', {}).then(function (d) {
-      var s = {}; d.settings.forEach(function (r) { s[r.setting_key] = r.setting_value; });
+      var s = d.settings || {};
       body.innerHTML = '<form id="f">' +
         settingField('store_name', 'Nama Toko', s.store_name) + settingField('store_tagline', 'Tagline', s.store_tagline) +
         settingField('store_address', 'Alamat Toko', s.store_address) + settingField('store_contact', 'Kontak (Telepon/WA)', s.store_contact) +

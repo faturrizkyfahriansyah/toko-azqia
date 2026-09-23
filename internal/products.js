@@ -7,6 +7,7 @@ Modules.products = (function () {
 
   function render(container) {
     return Promise.all([Api.call('category.list', {}), Api.call('unit.list', {}), Api.call('product.list', {})]).then(function (r) {
+      if (!container.isConnected) return;
       categories = r[0].categories; units = r[1].units;
       container.innerHTML =
         '<div class="row"><h1>Produk</h1><button class="btn btn-primary" id="btn-add-product">+ Produk Baru</button></div>' +
@@ -15,7 +16,9 @@ Modules.products = (function () {
       renderList(r[2].products);
       document.getElementById('btn-add-product').addEventListener('click', function () { openForm(); });
       document.getElementById('product-search').addEventListener('input', Utils.debounce(function (e) {
-        Api.call('product.list', { search: e.target.value }).then(function (d) { renderList(d.products); });
+        Api.call('product.list', { search: e.target.value }).then(function (d) {
+          if (document.getElementById('product-list')) renderList(d.products);
+        });
       }, 280));
     });
   }

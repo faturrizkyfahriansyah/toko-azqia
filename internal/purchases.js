@@ -8,6 +8,7 @@ Modules.purchases = (function () {
 
   function render(container) {
     return Promise.all([Api.call('supplier.list', {}), Api.call('purchase.list', {})]).then(function (r) {
+      if (!container.isConnected) return;
       container.innerHTML =
         '<div class="row"><h1>Barang Masuk</h1><button class="btn btn-primary" id="btn-new">+ Input Barang Masuk</button></div>' +
         '<div id="list"></div>';

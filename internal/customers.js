@@ -5,6 +5,7 @@ window.Modules = window.Modules || {};
 Modules.customers = (function () {
   function render(container) {
     return Api.call('customer.list', {}).then(function (d) {
+      if (!container.isConnected) return; // pengguna sudah pindah halaman sebelum data ini selesai dimuat
       container.innerHTML = '<div class="row"><h1>Pelanggan</h1><button class="btn btn-primary" id="btn-add">+ Pelanggan</button></div><div id="list"></div>';
       renderList(d.customers);
       document.getElementById('btn-add').addEventListener('click', function () { openForm(); });

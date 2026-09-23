@@ -14,6 +14,7 @@ Modules.orders = (function () {
 
   function render(container) {
     return Api.call('order.list', {}).then(function (d) {
+      if (!container.isConnected) return;
       container.innerHTML = '<h1>Pesanan Online</h1><div id="list"></div>';
       renderList(d.orders);
     });

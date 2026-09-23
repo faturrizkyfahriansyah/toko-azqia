@@ -5,6 +5,7 @@ window.Modules = window.Modules || {};
 Modules.suppliers = (function () {
   function render(container) {
     return Api.call('supplier.list', {}).then(function (d) {
+      if (!container.isConnected) return;
       container.innerHTML = '<div class="row"><h1>Supplier</h1><button class="btn btn-primary" id="btn-add">+ Supplier</button></div><div id="list"></div>';
       renderList(d.suppliers);
       document.getElementById('btn-add').addEventListener('click', function () { openForm(); });

@@ -5,6 +5,7 @@ window.Modules = window.Modules || {};
 Modules.users = (function () {
   function render(container) {
     return Promise.all([Api.call('user.list', {}), fetchRoles()]).then(function (r) {
+      if (!container.isConnected) return;
       container.innerHTML = '<div class="row"><h1>Pengguna</h1><button class="btn btn-primary" id="btn-add">+ Pengguna</button></div><div id="list"></div>';
       renderList(r[0].users, r[1]);
       document.getElementById('btn-add').addEventListener('click', function () { openForm(null, r[1]); });

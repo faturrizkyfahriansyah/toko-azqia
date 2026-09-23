@@ -46,7 +46,8 @@ Modules.inventory = (function () {
           var prod = pd.products.filter(function (p) { return p.sku === sku; })[0];
           if (!prod) { Utils.toast('SKU tidak ditemukan.', 'error'); return; }
           Api.call('stock.adjustment', { product_id: prod.product_id, qty: qty, reason: reason }).then(function () {
-            Utils.toast('Stok disesuaikan.', 'success'); render(document.getElementById('view-container'));
+            Utils.toast('Stok disesuaikan.', 'success');
+            if (body.isConnected) render(document.getElementById('view-container'));
           }).catch(function (err) { Utils.toast(err.message, 'error'); });
         });
       });
