@@ -3,8 +3,8 @@
  * perangkat ini saja (bukan cookie lintas domain) - lihat docs/KNOWN_LIMITATIONS.md.
  */
 window.Auth = (function () {
-  var TOKEN_KEY = 'azkia_token';
-  var USER_KEY = 'azkia_user';
+  var TOKEN_KEY = 'azqia_token';
+  var USER_KEY = 'azqia_user';
 
   function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
   function getUser() {

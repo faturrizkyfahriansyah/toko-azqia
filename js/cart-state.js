@@ -3,7 +3,7 @@
  * pembeli (bukan data sensitif - wajar disimpan di browser, situs statis biasa, bukan Artifact).
  */
 window.Cart = (function () {
-  var KEY = 'azkia_cart';
+  var KEY = 'azqia_cart';
 
   function read() {
     try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
