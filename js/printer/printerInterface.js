@@ -4,7 +4,7 @@
  * ke browser print jika gagal/tidak tersedia. Kasir selalu punya jalur cetak yang berfungsi.
  */
 window.PrinterManager = (function () {
-  var PREF_KEY = 'azkia_printer_pref';
+  var PREF_KEY = 'azqia_printer_pref';
 
   function getPreferredAdapterName() {
     return localStorage.getItem(PREF_KEY) || 'browser';
