@@ -2,23 +2,94 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TOKO AZKIA - Staf</title>
-<!--
-  Halaman ini SENGAJA TIDAK memakai manifest.json (tidak ada <link rel="manifest"> di sini),
-  supaya saat staf menekan "Tambahkan ke Layar Utama" dari halaman ini, browser membuat
-  ikon pintasan yang menuju PERSIS ke halaman ini (staff.html) - bukan mengikuti start_url
-  toko online di manifest.json (yang selalu menuju halaman pembeli).
--->
+<meta name="description" content="TOKO AZKIA - Area Staf (Pemilik/Pengelola).">
 <meta name="theme-color" content="#0B3D91">
-<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<!--
+  SENGAJA TIDAK ADA <link rel="manifest"> di halaman ini. Jika ada manifest, browser akan
+  mengikuti start_url manifest tersebut saat "Tambahkan ke Layar Utama" ditekan, mengabaikan
+  halaman yang sedang dibuka. Tanpa manifest, "Tambahkan ke Layar Utama" hanya membuat
+  pintasan biasa yang selalu membuka PERSIS halaman ini (staff.html) - jadi ikon staf akan
+  selalu membuka halaman login staf, terpisah dari ikon toko pembeli (yang memakai manifest.json).
+  Halaman ini JUGA TIDAK melakukan redirect/pindah ke index.html - seluruh aplikasi dimuat
+  langsung di sini agar URL yang tersimpan di pintasan tetap staff.html selamanya.
+-->
 <link rel="icon" href="assets/icons/icon-192.png">
-<script>
-  location.replace('./index.html#/internal/login');
-</script>
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 </head>
-<body style="font-family:system-ui,sans-serif;text-align:center;padding:60px 20px;color:#1f2328;">
-  <p>Membuka halaman staf TOKO AZKIA...</p>
-  <p><a href="./index.html#/internal/login">Klik di sini jika tidak otomatis terbuka</a></p>
+<body>
+<div id="app"><div class="content"><div class="spinner"></div></div></div>
+
+<script src="js/utils.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/config.js"></script>
+<script src="js/cart-state.js"></script>
+<script src="js/router.js"></script>
+<script src="js/layout.js"></script>
+
+<script src="js/printer/receiptBuilder.js"></script>
+<script src="js/printer/browserAdapter.js"></script>
+<script src="js/printer/thermalAdapter.js"></script>
+<script src="js/printer/printerInterface.js"></script>
+
+<script src="internal/login.js"></script>
+<script src="internal/dashboard.js"></script>
+<script src="internal/pos.js"></script>
+<script src="internal/products.js"></script>
+<script src="internal/inventory.js"></script>
+<script src="internal/purchases.js"></script>
+<script src="internal/suppliers.js"></script>
+<script src="internal/customers.js"></script>
+<script src="internal/orders.js"></script>
+<script src="internal/reports.js"></script>
+<script src="internal/users.js"></script>
+<script src="internal/settings.js"></script>
+
+<script src="shop/home.js"></script>
+<script src="shop/catalog.js"></script>
+<script src="shop/cart.js"></script>
+<script src="shop/checkout.js"></script>
+<script src="shop/payment.js"></script>
+<script src="shop/order.js"></script>
+<script src="shop/tracking.js"></script>
+
+<script>
+  Router.register('/shop/home', 'shop', Modules.home.render, true);
+  Router.register('/shop/catalog', 'shop', Modules.catalog.render, true);
+  Router.register('/shop/cart', 'shop', Modules.cart.render, true);
+  Router.register('/shop/checkout', 'shop', Modules.checkout.render, true);
+  Router.register('/shop/payment', 'shop', Modules.payment.render, true);
+  Router.register('/shop/order', 'shop', Modules.order.render, true);
+  Router.register('/shop/tracking', 'shop', Modules.tracking.render, true);
+
+  Router.register('/internal/login', 'internal', Modules.login.render, true);
+  Router.register('/internal/dashboard', 'internal', Modules.dashboard.render, false);
+  Router.register('/internal/pos', 'internal', Modules.pos.render, false);
+  Router.register('/internal/products', 'internal', Modules.products.render, false);
+  Router.register('/internal/inventory', 'internal', Modules.inventory.render, false);
+  Router.register('/internal/purchases', 'internal', Modules.purchases.render, false);
+  Router.register('/internal/suppliers', 'internal', Modules.suppliers.render, false);
+  Router.register('/internal/customers', 'internal', Modules.customers.render, false);
+  Router.register('/internal/orders', 'internal', Modules.orders.render, false);
+  Router.register('/internal/reports', 'internal', Modules.reports.render, false);
+  Router.register('/internal/users', 'internal', Modules.users.render, false);
+  Router.register('/internal/settings', 'internal', Modules.settings.render, false);
+
+  // Beda dengan index.html: default halaman di sini adalah login staf, bukan beranda pembeli.
+  if (!location.hash || location.hash === '#/shop/home') {
+    location.hash = Auth.isLoggedIn() ? '#/internal/dashboard' : '#/internal/login';
+  }
+
+  if (!window.TOKO_AZKIA_CONFIG || !window.TOKO_AZKIA_CONFIG.apiBaseUrl) {
+    console.warn('TOKO AZKIA: apiBaseUrl belum diisi di js/config.js - lihat docs/DEPLOYMENT.md TAHAP 11.');
+  }
+  Router.render();
+</script>
 </body>
 </html>
