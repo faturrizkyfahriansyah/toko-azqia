@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TOKO AZKIA</title>
-<meta name="description" content="TOKO AZKIA - Melayani Kebutuhan, Membangun Kepercayaan.">
+<title>TOKO AZQIA</title>
+<meta name="description" content="TOKO AZQIA - Melayani Kebutuhan, Membangun Kepercayaan.">
 <meta name="theme-color" content="#C8102E">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icons/icon-192.png">
@@ -18,7 +18,8 @@
 <div id="app"><div class="content"><div class="spinner"></div></div></div>
 
 <!-- Urutan pemuatan penting: utils/api/auth/config sebelum router; router sebelum layout;
-     printer sebelum modul yang memakainya (pos.js); semua modul sebelum skrip init di akhir. -->
+     printer & barcode sebelum modul yang memakainya (pos.js/products.js); semua modul sebelum
+     skrip init di akhir. -->
 <script src="js/utils.js"></script>
 <script src="js/api.js"></script>
 <script src="js/auth.js"></script>
@@ -31,19 +32,28 @@
 <script src="js/printer/browserAdapter.js"></script>
 <script src="js/printer/thermalAdapter.js"></script>
 <script src="js/printer/printerInterface.js"></script>
+<script src="js/barcode.js"></script>
 
 <script src="internal/login.js"></script>
 <script src="internal/dashboard.js"></script>
 <script src="internal/pos.js"></script>
+<script src="internal/transactions.js"></script>
 <script src="internal/products.js"></script>
 <script src="internal/inventory.js"></script>
 <script src="internal/purchases.js"></script>
 <script src="internal/suppliers.js"></script>
+<script src="internal/payables.js"></script>
 <script src="internal/customers.js"></script>
+<script src="internal/receivables.js"></script>
 <script src="internal/orders.js"></script>
+<script src="internal/cash.js"></script>
+<script src="internal/expenses.js"></script>
 <script src="internal/reports.js"></script>
 <script src="internal/users.js"></script>
 <script src="internal/settings.js"></script>
+<script src="internal/promos.js"></script>
+<script src="internal/messages.js"></script>
+<script src="internal/profile.js"></script>
 
 <script src="shop/home.js"></script>
 <script src="shop/catalog.js"></script>
@@ -54,7 +64,7 @@
 <script src="shop/tracking.js"></script>
 
 <script>
-  // Registrasi seluruh route (Bagian 13 - Sitemap UI/UX).
+  // Registrasi seluruh route (Struktur Menu Internal E, Bagian AL/AM toko online).
   Router.register('/shop/home', 'shop', Modules.home.render, true);
   Router.register('/shop/catalog', 'shop', Modules.catalog.render, true);
   Router.register('/shop/cart', 'shop', Modules.cart.render, true);
@@ -66,18 +76,30 @@
   Router.register('/internal/login', 'internal', Modules.login.render, true);
   Router.register('/internal/dashboard', 'internal', Modules.dashboard.render, false);
   Router.register('/internal/pos', 'internal', Modules.pos.render, false);
-  Router.register('/internal/products', 'internal', Modules.products.render, false);
-  Router.register('/internal/inventory', 'internal', Modules.inventory.render, false);
-  Router.register('/internal/purchases', 'internal', Modules.purchases.render, false);
-  Router.register('/internal/suppliers', 'internal', Modules.suppliers.render, false);
-  Router.register('/internal/customers', 'internal', Modules.customers.render, false);
+  Router.register('/internal/transactions', 'internal', Modules.transactions.render, false);
   Router.register('/internal/orders', 'internal', Modules.orders.render, false);
+  Router.register('/internal/products', 'internal', Modules.products.render, false);
+  Router.register('/internal/purchases', 'internal', Modules.purchases.render, false);
+  Router.register('/internal/inventory', 'internal', function (c) { return Modules.inventory.render(c, 'ledger'); }, false);
+  Router.register('/internal/opname', 'internal', function (c) { return Modules.inventory.render(c, 'opname'); }, false);
+  Router.register('/internal/returns', 'internal', function (c) { return Modules.inventory.render(c, 'retur_customer'); }, false);
+  Router.register('/internal/customers', 'internal', Modules.customers.render, false);
+  Router.register('/internal/receivables', 'internal', Modules.receivables.render, false);
+  Router.register('/internal/suppliers', 'internal', Modules.suppliers.render, false);
+  Router.register('/internal/payables', 'internal', Modules.payables.render, false);
+  Router.register('/internal/cash', 'internal', Modules.cash.render, false);
+  Router.register('/internal/expenses', 'internal', Modules.expenses.render, false);
   Router.register('/internal/reports', 'internal', Modules.reports.render, false);
   Router.register('/internal/users', 'internal', Modules.users.render, false);
-  Router.register('/internal/settings', 'internal', Modules.settings.render, false);
+  Router.register('/internal/settings', 'internal', function (c) { return Modules.settings.render(c, 'toko'); }, false);
+  Router.register('/internal/audit', 'internal', function (c) { return Modules.settings.render(c, 'audit'); }, false);
+  Router.register('/internal/backup', 'internal', function (c) { return Modules.settings.render(c, 'backup'); }, false);
+  Router.register('/internal/promos', 'internal', Modules.promos.render, false);
+  Router.register('/internal/messages', 'internal', Modules.messages.render, false);
+  Router.register('/internal/profile', 'internal', Modules.profile.render, false);
 
-  if (!window.TOKO_AZKIA_CONFIG || !window.TOKO_AZKIA_CONFIG.apiBaseUrl) {
-    console.warn('TOKO AZKIA: apiBaseUrl belum diisi di js/config.js - lihat docs/DEPLOYMENT.md TAHAP 11.');
+  if (!window.TOKO_AZQIA_CONFIG || !window.TOKO_AZQIA_CONFIG.apiBaseUrl) {
+    console.warn('TOKO AZQIA: apiBaseUrl belum diisi di js/config.js - lihat docs/DEPLOYMENT.md TAHAP 11.');
   }
   Router.render();
 

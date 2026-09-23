@@ -3,17 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TOKO AZKIA - Staf</title>
-<meta name="description" content="TOKO AZKIA - Area Staf (Pemilik/Pengelola).">
+<title>TOKO AZQIA - Staf</title>
+<meta name="description" content="TOKO AZQIA - Area Staf (Pemilik/Pengelola).">
 <meta name="theme-color" content="#0B3D91">
 <!--
-  SENGAJA TIDAK ADA <link rel="manifest"> di halaman ini. Jika ada manifest, browser akan
-  mengikuti start_url manifest tersebut saat "Tambahkan ke Layar Utama" ditekan, mengabaikan
-  halaman yang sedang dibuka. Tanpa manifest, "Tambahkan ke Layar Utama" hanya membuat
-  pintasan biasa yang selalu membuka PERSIS halaman ini (staff.html) - jadi ikon staf akan
-  selalu membuka halaman login staf, terpisah dari ikon toko pembeli (yang memakai manifest.json).
-  Halaman ini JUGA TIDAK melakukan redirect/pindah ke index.html - seluruh aplikasi dimuat
-  langsung di sini agar URL yang tersimpan di pintasan tetap staff.html selamanya.
+  SENGAJA TIDAK ADA <link rel="manifest"> di halaman ini, dan halaman ini TIDAK melakukan
+  redirect ke index.html - lihat catatan di frontend/staff.html versi sebelumnya untuk alasan
+  lengkapnya (supaya "Tambahkan ke Layar Utama" selalu membuka persis halaman staf ini).
 -->
 <link rel="icon" href="assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
@@ -37,19 +33,28 @@
 <script src="js/printer/browserAdapter.js"></script>
 <script src="js/printer/thermalAdapter.js"></script>
 <script src="js/printer/printerInterface.js"></script>
+<script src="js/barcode.js"></script>
 
 <script src="internal/login.js"></script>
 <script src="internal/dashboard.js"></script>
 <script src="internal/pos.js"></script>
+<script src="internal/transactions.js"></script>
 <script src="internal/products.js"></script>
 <script src="internal/inventory.js"></script>
 <script src="internal/purchases.js"></script>
 <script src="internal/suppliers.js"></script>
+<script src="internal/payables.js"></script>
 <script src="internal/customers.js"></script>
+<script src="internal/receivables.js"></script>
 <script src="internal/orders.js"></script>
+<script src="internal/cash.js"></script>
+<script src="internal/expenses.js"></script>
 <script src="internal/reports.js"></script>
 <script src="internal/users.js"></script>
 <script src="internal/settings.js"></script>
+<script src="internal/promos.js"></script>
+<script src="internal/messages.js"></script>
+<script src="internal/profile.js"></script>
 
 <script src="shop/home.js"></script>
 <script src="shop/catalog.js"></script>
@@ -71,23 +76,35 @@
   Router.register('/internal/login', 'internal', Modules.login.render, true);
   Router.register('/internal/dashboard', 'internal', Modules.dashboard.render, false);
   Router.register('/internal/pos', 'internal', Modules.pos.render, false);
-  Router.register('/internal/products', 'internal', Modules.products.render, false);
-  Router.register('/internal/inventory', 'internal', Modules.inventory.render, false);
-  Router.register('/internal/purchases', 'internal', Modules.purchases.render, false);
-  Router.register('/internal/suppliers', 'internal', Modules.suppliers.render, false);
-  Router.register('/internal/customers', 'internal', Modules.customers.render, false);
+  Router.register('/internal/transactions', 'internal', Modules.transactions.render, false);
   Router.register('/internal/orders', 'internal', Modules.orders.render, false);
+  Router.register('/internal/products', 'internal', Modules.products.render, false);
+  Router.register('/internal/purchases', 'internal', Modules.purchases.render, false);
+  Router.register('/internal/inventory', 'internal', function (c) { return Modules.inventory.render(c, 'ledger'); }, false);
+  Router.register('/internal/opname', 'internal', function (c) { return Modules.inventory.render(c, 'opname'); }, false);
+  Router.register('/internal/returns', 'internal', function (c) { return Modules.inventory.render(c, 'retur_customer'); }, false);
+  Router.register('/internal/customers', 'internal', Modules.customers.render, false);
+  Router.register('/internal/receivables', 'internal', Modules.receivables.render, false);
+  Router.register('/internal/suppliers', 'internal', Modules.suppliers.render, false);
+  Router.register('/internal/payables', 'internal', Modules.payables.render, false);
+  Router.register('/internal/cash', 'internal', Modules.cash.render, false);
+  Router.register('/internal/expenses', 'internal', Modules.expenses.render, false);
   Router.register('/internal/reports', 'internal', Modules.reports.render, false);
   Router.register('/internal/users', 'internal', Modules.users.render, false);
-  Router.register('/internal/settings', 'internal', Modules.settings.render, false);
+  Router.register('/internal/settings', 'internal', function (c) { return Modules.settings.render(c, 'toko'); }, false);
+  Router.register('/internal/audit', 'internal', function (c) { return Modules.settings.render(c, 'audit'); }, false);
+  Router.register('/internal/backup', 'internal', function (c) { return Modules.settings.render(c, 'backup'); }, false);
+  Router.register('/internal/promos', 'internal', Modules.promos.render, false);
+  Router.register('/internal/messages', 'internal', Modules.messages.render, false);
+  Router.register('/internal/profile', 'internal', Modules.profile.render, false);
 
-  // Beda dengan index.html: default halaman di sini adalah login staf, bukan beranda pembeli.
+  // Beda dengan index.html: default halaman di sini adalah login/ringkasan staf, bukan beranda pembeli.
   if (!location.hash || location.hash === '#/shop/home') {
     location.hash = Auth.isLoggedIn() ? '#/internal/dashboard' : '#/internal/login';
   }
 
-  if (!window.TOKO_AZKIA_CONFIG || !window.TOKO_AZKIA_CONFIG.apiBaseUrl) {
-    console.warn('TOKO AZKIA: apiBaseUrl belum diisi di js/config.js - lihat docs/DEPLOYMENT.md TAHAP 11.');
+  if (!window.TOKO_AZQIA_CONFIG || !window.TOKO_AZQIA_CONFIG.apiBaseUrl) {
+    console.warn('TOKO AZQIA: apiBaseUrl belum diisi di js/config.js - lihat docs/DEPLOYMENT.md TAHAP 11.');
   }
   Router.render();
 </script>
