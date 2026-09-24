@@ -136,6 +136,12 @@ Modules.settings = (function () {
           return '<div class="card row"><div><strong>' + a.label + '</strong><div class="muted">' + window.PrinterManager.statusLabel(a.id) + '</div></div>' +
             '<button class="btn ' + (current === a.id ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-select="' + a.id + '"' + (!a.available ? ' disabled' : '') + '>' + (current === a.id ? 'Terpilih' : 'Pilih') + '</button></div>';
         }).join('') +
+        '<div class="card"><h3 style="font-size:0.85rem;">Lebar Kertas (Cetak via Browser)</h3>' +
+        '<p class="hint" style="margin-top:0;">Khusus jalur "Cetak via Browser" - sesuaikan dengan kertas printer yang benar-benar terpasang di komputer ini (bisa berbeda dari printer referensi 58mm di atas, kalau Anda mencetak lewat printer thermal lain yang terdaftar di sistem).</p>' +
+        '<div class="field-row">' +
+        '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '58' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="58">58mm</button>' +
+        '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '80' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="80">80mm</button>' +
+        '</div></div>' +
         '<div class="card" id="bridge-panel"><h3 style="font-size:0.85rem;">TOKOQIA Local Print Bridge</h3>' +
         '<p class="hint">Untuk printer Bluetooth Classic/SPP seperti RPP02N yang tidak terjangkau Web Bluetooth. Jalankan <code>node bridge.js</code> dulu di komputer ini - lihat <code>bridge/node-bridge/README.md</code>.</p>' +
         '<div id="bridge-port-list" class="muted">' + (cap.localBridge ? 'Klik "Cari Printer" untuk memuat daftar port.' : 'Bridge belum aktif - jalankan node bridge.js terlebih dahulu.') + '</div>' +
@@ -153,6 +159,9 @@ Modules.settings = (function () {
 
       Utils.qsa('[data-select]', body).forEach(function (b) {
         b.addEventListener('click', function () { window.PrinterManager.setPreferredAdapterName(b.getAttribute('data-select')); renderTab(); });
+      });
+      Utils.qsa('[data-paper]', body).forEach(function (b) {
+        b.addEventListener('click', function () { window.PrinterBrowserAdapter.setPaperWidth(b.getAttribute('data-paper')); renderTab(); });
       });
 
       var scanBtn = body.querySelector('#btn-bridge-scan');
