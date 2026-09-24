@@ -6,38 +6,76 @@
 window.Modules = window.Modules || {};
 Modules.products = (function () {
   var categories = [], units = [];
+  var lastProducts = [];
 
   function render(container) {
     return Promise.all([Api.call('category.list', {}), Api.call('unit.list', {}), Api.call('product.list', {})]).then(function (r) {
       if (!container.isConnected) return;
       categories = r[0].categories; units = r[1].units;
       container.innerHTML =
-        '<div class="row"><h1>Produk</h1><button class="btn btn-primary" id="btn-add-product">+ Produk Baru</button></div>' +
-        '<div class="search-box"><input id="product-search" placeholder="Cari produk / SKU / barcode..."></div>' +
-        '<div id="product-list"></div>';
+        '<div class="row"><h1>Produk</h1><button class="btn btn-primary" id="btn-add-product">+ Tambah Produk</button></div>' +
+        '<div class="search-box"><input id="product-search" placeholder="Cari produk"></div>' +
+        '<div class="filter-row">' +
+        '<select id="filter-category"><option value="">Semua Kategori</option>' + categories.map(function (c) { return '<option value="' + c.category_id + '">' + Utils.escapeHtml(c.category_name) + '</option>'; }).join('') + '</select>' +
+        '<select id="filter-status"><option value="">Semua Status</option><option value="active">Aktif</option><option value="inactive">Nonaktif</option></select>' +
+        '<select id="filter-stock"><option value="">Semua Stok</option><option value="low">Stok Menipis</option><option value="out">Stok Habis</option></select>' +
+        '</div>' +
+        '<div id="product-list" class="responsive-data"></div>';
       renderList(r[2].products);
       document.getElementById('btn-add-product').addEventListener('click', function () { openForm(); });
-      document.getElementById('product-search').addEventListener('input', Utils.debounce(function (e) {
-        Api.call('product.list', { search: e.target.value }).then(function (d) {
-          if (document.getElementById('product-list')) renderList(d.products);
+
+      var reload = Utils.debounce(function () {
+        var params = { search: document.getElementById('product-search').value, category_id: document.getElementById('filter-category').value };
+        Api.call('product.list', params).then(function (d) {
+          if (!document.getElementById('product-list')) return;
+          renderList(applyLocalFilters(d.products));
         });
-      }, 280));
+      }, 260);
+      document.getElementById('product-search').addEventListener('input', reload);
+      document.getElementById('filter-category').addEventListener('change', reload);
+      document.getElementById('filter-status').addEventListener('change', reload);
+      document.getElementById('filter-stock').addEventListener('change', reload);
+    });
+  }
+
+  function applyLocalFilters(products) {
+    var status = document.getElementById('filter-status').value;
+    var stock = document.getElementById('filter-stock').value;
+    return products.filter(function (p) {
+      var active = String(p.active) === 'true' || p.active === true;
+      if (status === 'active' && !active) return false;
+      if (status === 'inactive' && active) return false;
+      var available = Number(p.current_stock) - Number(p.reserved_stock);
+      if (stock === 'low' && !(available > 0 && available <= Number(p.minimum_stock))) return false;
+      if (stock === 'out' && available > 0) return false;
+      return true;
     });
   }
 
   function renderList(products) {
+    lastProducts = products;
     var box = document.getElementById('product-list');
-    if (products.length === 0) { box.innerHTML = '<div class="empty-state">Belum ada produk. Klik "+ Produk Baru" untuk mulai.</div>'; return; }
-    box.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Produk</th><th>Stok</th><th>Harga Jual</th><th>Status</th><th></th></tr></thead><tbody>' +
+    if (products.length === 0) { box.innerHTML = '<div class="empty-state"><div class="empty-title">Belum ada produk</div><div class="empty-sub">Klik "+ Tambah Produk" untuk mulai.</div></div>'; return; }
+
+    var statusBadge = function (p) { return (String(p.active) === 'true' || p.active === true) ? '<span class="badge green">Aktif</span>' : '<span class="badge grey">Nonaktif</span>'; };
+    var stockBadge = function (available, min) { return available <= 0 ? ' <span class="badge red">Habis</span>' : (available <= min ? ' <span class="badge gold">Menipis</span>' : ''); };
+
+    var tableHtml = '<div class="table-wrap"><table><thead><tr><th>Produk</th><th>SKU</th><th>Harga</th><th>Stok</th><th>Status</th><th></th></tr></thead><tbody>' +
       products.map(function (p) {
         var available = Number(p.current_stock) - Number(p.reserved_stock);
-        var low = available <= Number(p.minimum_stock);
-        return '<tr><td>' + Utils.escapeHtml(p.product_name) + '<div class="muted">' + Utils.escapeHtml(p.sku) + ' &middot; ' + Utils.escapeHtml(p.barcode || '-') + '</div></td>' +
-          '<td>' + available + (low ? ' <span class="badge gold">Menipis</span>' : '') + '</td>' +
-          '<td>' + Utils.formatCurrency(p.selling_price) + '</td>' +
-          '<td>' + (String(p.active) === 'true' || p.active === true ? '<span class="badge green">Aktif</span>' : '<span class="badge grey">Nonaktif</span>') + '</td>' +
-          '<td><button class="btn btn-outline btn-sm" data-edit="' + p.product_id + '">Edit</button></td></tr>';
+        return '<tr><td>' + Utils.escapeHtml(p.product_name) + '</td><td class="muted">' + Utils.escapeHtml(p.sku) + '</td>' +
+          '<td>' + Utils.formatCurrency(p.selling_price) + '</td><td>' + available + stockBadge(available, Number(p.minimum_stock)) + '</td>' +
+          '<td>' + statusBadge(p) + '</td><td><button class="btn btn-outline btn-sm" data-edit="' + p.product_id + '">Edit</button></td></tr>';
       }).join('') + '</tbody></table></div>';
+
+    var listHtml = '<div class="mobile-list">' + products.map(function (p) {
+      var available = Number(p.current_stock) - Number(p.reserved_stock);
+      return '<div class="data-row" data-edit="' + p.product_id + '" style="cursor:pointer;">' +
+        '<div class="main"><div class="title">' + Utils.escapeHtml(p.product_name) + '</div><div class="sub">' + Utils.escapeHtml(p.sku) + ' &middot; Stok ' + available + stockBadge(available, Number(p.minimum_stock)) + '</div></div>' +
+        '<div class="end"><div class="amount">' + Utils.formatCurrency(p.selling_price) + '</div>' + statusBadge(p) + '</div></div>';
+    }).join('') + '</div>';
+
+    box.innerHTML = tableHtml + listHtml;
     Utils.qsa('[data-edit]', box).forEach(function (b) {
       b.addEventListener('click', function () {
         var p = products.filter(function (x) { return x.product_id === b.getAttribute('data-edit'); })[0];

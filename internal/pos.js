@@ -4,6 +4,7 @@
  */
 window.Modules = window.Modules || {};
 Modules.pos = (function () {
+  var CAMERA_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/></svg>';
   var cart = []; // {product_id, product_name, unit_id, unit_name, unit_price, qty, discount, availableUnits}
   var customersCache = null;
 
@@ -29,14 +30,14 @@ Modules.pos = (function () {
   function render(container) {
     container.innerHTML =
       '<h1>Kasir</h1>' +
-      '<div class="search-box"><input id="pos-search" placeholder="Cari nama / SKU / barcode produk..." autofocus>' +
-      '<button class="btn btn-secondary" id="pos-scan" title="Scan barcode via kamera">📷</button></div>' +
+      '<div class="search-box"><input id="pos-search" placeholder="Cari produk atau scan barcode" autofocus>' +
+      '<button class="btn btn-secondary" id="pos-scan" title="Scan barcode via kamera" aria-label="Scan barcode">' + CAMERA_ICON + '</button></div>' +
       '<div id="pos-results" class="card" style="display:none;max-height:260px;overflow-y:auto;"></div>' +
-      '<div class="card"><h3>Keranjang</h3><div id="pos-cart"></div>' +
-      '<div class="divider"></div>' +
-      '<div class="field"><label>Diskon Transaksi (Rp)</label><input id="pos-discount" type="number" value="0" min="0"></div>' +
-      '<div class="row"><strong>Total</strong><strong id="pos-total" style="color:var(--red);font-size:1.2rem;"></strong></div>' +
-      '<button class="btn btn-primary btn-block" id="pos-pay" style="margin-top:12px;">Bayar</button>' +
+      '<div class="card"><h3>Keranjang</h3><div id="pos-cart"></div></div>' +
+      '<div class="pos-sticky-footer">' +
+      '<div class="field" style="margin-bottom:8px;"><label>Diskon Transaksi (Rp)</label><input id="pos-discount" type="number" value="0" min="0"></div>' +
+      '<div class="row"><span class="muted">Total</span><strong id="pos-total" style="color:var(--red);font-size:1.3rem;"></strong></div>' +
+      '<button class="btn btn-primary btn-block" id="pos-pay" style="margin-top:10px;">Bayar</button>' +
       '</div>';
 
     var searchInput = document.getElementById('pos-search');
@@ -101,7 +102,8 @@ Modules.pos = (function () {
             l.availableUnits.map(function (u) { return '<option value="' + u.unit_id + '"' + (u.unit_id === l.unit_id ? ' selected' : '') + '>' + Utils.escapeHtml(u.unit_name) + '</option>'; }).join('') + '</select>'
           : '<span class="muted">' + Utils.escapeHtml(l.unit_name) + '</span>';
         return '<div class="cart-item"><div style="flex:1;"><div style="font-weight:600;">' + Utils.escapeHtml(l.product_name) + '</div>' +
-          '<div class="muted">' + Utils.formatCurrency(l.unit_price) + ' / ' + Utils.escapeHtml(l.unit_name) + '</div>' + unitSelect + '</div>' +
+          '<div class="muted">' + Utils.formatCurrency(l.unit_price) + ' / ' + Utils.escapeHtml(l.unit_name) + '</div>' + unitSelect +
+          '<div class="muted" style="margin-top:2px;">Subtotal: <strong style="color:var(--ink);">' + Utils.formatCurrency(l.qty * l.unit_price) + '</strong></div></div>' +
           '<div class="qty-control"><button data-dec="' + idx + '">-</button><span>' + l.qty + '</span><button data-inc="' + idx + '">+</button></div>' +
           '<button class="btn btn-ghost btn-sm" data-remove="' + idx + '">Hapus</button></div>';
       }).join('');

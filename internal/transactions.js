@@ -30,13 +30,21 @@ Modules.transactions = (function () {
       date_to: document.getElementById('tx-to').value
     };
     return Api.call('sale.list', params).then(function (d) {
-      if (d.sales.length === 0) { box.innerHTML = '<div class="empty-state">Tidak ada transaksi ditemukan.</div>'; return; }
-      box.innerHTML = '<div class="table-wrap"><table><thead><tr><th>No.</th><th>Waktu</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>' +
+      if (d.sales.length === 0) { box.innerHTML = '<div class="empty-state"><div class="empty-title">Tidak ada transaksi ditemukan</div><div class="empty-sub">Coba ubah kata kunci atau rentang tanggal.</div></div>'; return; }
+      var statusBadge = function (s) { return s.status === 'VOID' ? '<span class="badge red">Void</span>' : '<span class="badge green">Selesai</span>'; };
+      var tableHtml = '<div class="table-wrap"><table><thead><tr><th>No.</th><th>Waktu</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>' +
         d.sales.map(function (s) {
           return '<tr><td>' + s.sale_number + '</td><td>' + Utils.formatDate(s.sale_date) + '</td><td>' + Utils.formatCurrency(s.total) + '</td>' +
-            '<td>' + (s.status === 'VOID' ? '<span class="badge red">Void</span>' : '<span class="badge green">Selesai</span>') + '</td>' +
+            '<td>' + statusBadge(s) + '</td>' +
             '<td><button class="btn btn-outline btn-sm" data-detail="' + s.sale_id + '">Detail</button></td></tr>';
         }).join('') + '</tbody></table></div>';
+      var listHtml = '<div class="mobile-list">' + d.sales.map(function (s) {
+        return '<div class="data-row" data-detail="' + s.sale_id + '" style="cursor:pointer;">' +
+          '<div class="main"><div class="title">' + s.sale_number + '</div><div class="sub">' + Utils.formatDate(s.sale_date) + '</div></div>' +
+          '<div class="end"><div class="amount">' + Utils.formatCurrency(s.total) + '</div>' + statusBadge(s) + '</div></div>';
+      }).join('') + '</div>';
+      box.className = 'responsive-data';
+      box.innerHTML = tableHtml + listHtml;
       Utils.qsa('[data-detail]', box).forEach(function (b) {
         b.addEventListener('click', function () { openDetail(b.getAttribute('data-detail')); });
       });
