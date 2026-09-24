@@ -1,0 +1,16 @@
+{
+  "name": "tokoqia-local-print-bridge",
+  "version": "1.0.0",
+  "description": "TOKOQIA Local Print Bridge - jembatan lokal antara halaman web TOKOQIA dan printer thermal via port COM/serial (untuk printer Bluetooth Classic/SPP seperti BT-583/RPP02N yang tidak terjangkau Web Bluetooth browser).",
+  "private": true,
+  "main": "bridge.js",
+  "scripts": {
+    "start": "node bridge.js"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
