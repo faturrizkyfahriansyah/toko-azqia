@@ -241,7 +241,7 @@ Modules.pos = (function () {
         '</div>'
       );
       m.querySelector('#btn-print').addEventListener('click', function () {
-        window.PrinterManager.print(data).catch(function (e) { Utils.toast(e.message, 'error'); });
+        window.PrinterManager.printWithUI(m.querySelector('#btn-print'), data);
       });
       m.querySelector('#btn-close').addEventListener('click', function () { Utils.closeModal(); Router.render(); });
     });

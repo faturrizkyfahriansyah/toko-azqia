@@ -71,8 +71,9 @@ Modules.transactions = (function () {
         '</div>'
       );
       m.querySelector('#tx-print').addEventListener('click', function () {
+        var btn = m.querySelector('#tx-print');
         Api.call('pos.reprintReceipt', { sale_id: saleId }).then(function (data) {
-          window.PrinterManager.print(data).catch(function (e) { Utils.toast(e.message, 'error'); });
+          window.PrinterManager.printWithUI(btn, data);
         });
       });
       var voidBtn = m.querySelector('#tx-void');
