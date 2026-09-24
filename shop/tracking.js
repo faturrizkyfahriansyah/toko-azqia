@@ -21,10 +21,10 @@ Modules.tracking = (function () {
       var box = document.getElementById('track-result');
       Utils.showLoading(box);
       Api.call('public.order.track', fd).then(function (d) {
-        box.innerHTML = '<div class="card"><div class="row"><strong>' + d.order_number + '</strong><span class="badge blue">' + d.order_status + '</span></div>' +
+        box.innerHTML = '<div class="card"><div class="row"><strong>' + d.order_number + '</strong>' + Utils.orderStatusBadge(d.order_status) + '</div>' +
           '<p class="muted">' + d.fulfillment_type + ' &middot; Total ' + Utils.formatCurrency(d.grand_total) + '</p>' +
           '<div class="divider"></div><h3>Riwayat Status</h3>' +
-          d.status_log.map(function (l) { return '<div class="row" style="padding:4px 0;"><span>' + l.to_status + '</span><span class="muted">' + Utils.formatDate(l.changed_at) + '</span></div>'; }).join('') +
+          d.status_log.map(function (l) { return '<div class="row" style="padding:4px 0;"><span>' + Utils.escapeHtml(Utils.orderStatusInfo(l.to_status).label) + '</span><span class="muted">' + Utils.formatDate(l.changed_at) + '</span></div>'; }).join('') +
           '<div class="divider"></div><h3>Item</h3>' +
           d.items.map(function (it) { return '<div class="row"><span>' + Utils.escapeHtml(it.product_name) + ' x' + it.qty + '</span><span>' + Utils.formatCurrency(it.subtotal) + '</span></div>'; }).join('') +
           '</div>' +
