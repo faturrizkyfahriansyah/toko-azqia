@@ -5,12 +5,12 @@
  * (POST ke Apps Script) - transaksi, stok, dan pembayaran WAJIB selalu berupa panggilan
  * jaringan langsung, tidak boleh terlihat "berhasil" saat offline. Lihat docs/KNOWN_LIMITATIONS.md.
  */
-var CACHE_NAME = 'tokoqia-shell-v5';
+var CACHE_NAME = 'tokoqia-shell-v6';
 var SHELL_FILES = [
   './', './index.html', './staff.html', './manifest.json', './offline.html',
   './css/style.css',
   './js/utils.js', './js/api.js', './js/auth.js', './js/config.js', './js/cart-state.js', './js/router.js', './js/layout.js', './js/barcode.js',
-  './js/printer/receiptBuilder.js', './js/printer/browserAdapter.js', './js/printer/thermalAdapter.js', './js/printer/printerInterface.js',
+  './js/printer/receiptBuilder.js', './js/printer/browserAdapter.js', './js/printer/thermalAdapter.js', './js/printer/serialAdapter.js', './js/printer/printerInterface.js',
   './internal/login.js', './internal/dashboard.js', './internal/pos.js', './internal/transactions.js', './internal/products.js', './internal/inventory.js',
   './internal/purchases.js', './internal/suppliers.js', './internal/payables.js', './internal/customers.js', './internal/receivables.js',
   './internal/orders.js', './internal/cash.js', './internal/expenses.js', './internal/reports.js', './internal/users.js', './internal/settings.js',
