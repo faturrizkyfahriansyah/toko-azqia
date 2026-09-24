@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TOKO AZQIA - Staf</title>
-<meta name="description" content="TOKO AZQIA - Area Staf (Pemilik/Pengelola).">
-<meta name="theme-color" content="#0B3D91">
+<title>TOKOQIA - Staf</title>
+<meta name="description" content="TOKOQIA - Area Staf TOKO AZQIA (Pemilik/Pengelola).">
+<meta name="theme-color" content="#ffffff">
 <!--
   SENGAJA TIDAK ADA <link rel="manifest"> di halaman ini, dan halaman ini TIDAK melakukan
   redirect ke index.html - lihat catatan di frontend/staff.html versi sebelumnya untuk alasan
   lengkapnya (supaya "Tambahkan ke Layar Utama" selalu membuka persis halaman staf ini).
 -->
-<link rel="icon" href="assets/icons/icon-192.png">
+<link rel="icon" href="assets/icons/favicon.png">
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,50 +21,53 @@
 <body>
 <div id="app"><div class="content"><div class="spinner"></div></div></div>
 
-<script src="js/utils.js"></script>
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/config.js"></script>
-<script src="js/cart-state.js"></script>
-<script src="js/router.js"></script>
-<script src="js/layout.js"></script>
+<script defer src="js/utils.js"></script>
+<script defer src="js/api.js"></script>
+<script defer src="js/auth.js"></script>
+<script defer src="js/config.js"></script>
+<script defer src="js/cart-state.js"></script>
+<script defer src="js/router.js"></script>
+<script defer src="js/layout.js"></script>
 
-<script src="js/printer/receiptBuilder.js"></script>
-<script src="js/printer/browserAdapter.js"></script>
-<script src="js/printer/thermalAdapter.js"></script>
-<script src="js/printer/printerInterface.js"></script>
-<script src="js/barcode.js"></script>
+<script defer src="js/printer/receiptBuilder.js"></script>
+<script defer src="js/printer/browserAdapter.js"></script>
+<script defer src="js/printer/thermalAdapter.js"></script>
+<script defer src="js/printer/printerInterface.js"></script>
+<script defer src="js/barcode.js"></script>
 
-<script src="internal/login.js"></script>
-<script src="internal/dashboard.js"></script>
-<script src="internal/pos.js"></script>
-<script src="internal/transactions.js"></script>
-<script src="internal/products.js"></script>
-<script src="internal/inventory.js"></script>
-<script src="internal/purchases.js"></script>
-<script src="internal/suppliers.js"></script>
-<script src="internal/payables.js"></script>
-<script src="internal/customers.js"></script>
-<script src="internal/receivables.js"></script>
-<script src="internal/orders.js"></script>
-<script src="internal/cash.js"></script>
-<script src="internal/expenses.js"></script>
-<script src="internal/reports.js"></script>
-<script src="internal/users.js"></script>
-<script src="internal/settings.js"></script>
-<script src="internal/promos.js"></script>
-<script src="internal/messages.js"></script>
-<script src="internal/profile.js"></script>
+<script defer src="internal/login.js"></script>
+<script defer src="internal/dashboard.js"></script>
+<script defer src="internal/pos.js"></script>
+<script defer src="internal/transactions.js"></script>
+<script defer src="internal/products.js"></script>
+<script defer src="internal/inventory.js"></script>
+<script defer src="internal/purchases.js"></script>
+<script defer src="internal/suppliers.js"></script>
+<script defer src="internal/payables.js"></script>
+<script defer src="internal/customers.js"></script>
+<script defer src="internal/receivables.js"></script>
+<script defer src="internal/orders.js"></script>
+<script defer src="internal/cash.js"></script>
+<script defer src="internal/expenses.js"></script>
+<script defer src="internal/reports.js"></script>
+<script defer src="internal/users.js"></script>
+<script defer src="internal/settings.js"></script>
+<script defer src="internal/promos.js"></script>
+<script defer src="internal/messages.js"></script>
+<script defer src="internal/profile.js"></script>
 
-<script src="shop/home.js"></script>
-<script src="shop/catalog.js"></script>
-<script src="shop/cart.js"></script>
-<script src="shop/checkout.js"></script>
-<script src="shop/payment.js"></script>
-<script src="shop/order.js"></script>
-<script src="shop/tracking.js"></script>
+<script defer src="shop/home.js"></script>
+<script defer src="shop/catalog.js"></script>
+<script defer src="shop/cart.js"></script>
+<script defer src="shop/checkout.js"></script>
+<script defer src="shop/payment.js"></script>
+<script defer src="shop/order.js"></script>
+<script defer src="shop/tracking.js"></script>
 
 <script>
+// Dibungkus DOMContentLoaded karena script module di atas kini memakai "defer" (optimasi
+// performa). Urutan eksekusi & routing TETAP SAMA seperti sebelumnya.
+document.addEventListener('DOMContentLoaded', function () {
   Router.register('/shop/home', 'shop', Modules.home.render, true);
   Router.register('/shop/catalog', 'shop', Modules.catalog.render, true);
   Router.register('/shop/cart', 'shop', Modules.cart.render, true);
@@ -107,6 +110,7 @@
     console.warn('TOKO AZQIA: apiBaseUrl belum diisi di js/config.js - lihat docs/DEPLOYMENT.md TAHAP 11.');
   }
   Router.render();
+});
 </script>
 </body>
 </html>

@@ -5,7 +5,7 @@
  * (POST ke Apps Script) - transaksi, stok, dan pembayaran WAJIB selalu berupa panggilan
  * jaringan langsung, tidak boleh terlihat "berhasil" saat offline. Lihat docs/KNOWN_LIMITATIONS.md.
  */
-var CACHE_NAME = 'azqia-shell-v3';
+var CACHE_NAME = 'tokoqia-shell-v5';
 var SHELL_FILES = [
   './', './index.html', './staff.html', './manifest.json', './offline.html',
   './css/style.css',
@@ -16,7 +16,8 @@ var SHELL_FILES = [
   './internal/orders.js', './internal/cash.js', './internal/expenses.js', './internal/reports.js', './internal/users.js', './internal/settings.js',
   './internal/promos.js', './internal/messages.js', './internal/profile.js',
   './shop/home.js', './shop/catalog.js', './shop/cart.js', './shop/checkout.js', './shop/payment.js', './shop/order.js', './shop/tracking.js',
-  './assets/icons/icon-192.png', './assets/icons/icon-512.png'
+  './assets/icons/icon-192.png', './assets/icons/icon-512.png', './assets/icons/favicon.png',
+  './assets/brand/logo-horizontal.png'
 ];
 
 self.addEventListener('install', function (event) {
