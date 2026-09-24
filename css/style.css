@@ -88,6 +88,18 @@ button, input, select, textarea { font-family: inherit; font-size: 1rem; }
   position: absolute; top: 3px; right: 3px; background: var(--red); color: #fff;
   font-size: 0.6rem; font-weight: 800; padding: 1px 4px; border-radius: 999px; min-width: 14px; text-align: center;
 }
+/* Header sisi internal/Pengelola: background merah brand, logo & ikon putih (Prompt Beranda TOKOQIA).
+   Logo memakai assets/icons/tokoqia-white.png langsung - lihat js/layout.js untuk fallback
+   otomatis (class .css-invert-fallback di bawah) selama file itu masih placeholder. */
+.topbar.on-brand { background: var(--red); border-bottom: none; }
+.topbar.on-brand .icon-btn { color: #fff; }
+.topbar.on-brand .icon-btn:hover { background: rgba(255,255,255,0.15); }
+.topbar.on-brand .brand .app-name { color: #fff; }
+.topbar.on-brand .bell-badge { background: #fff; color: var(--red); }
+.topbar.on-brand .avatar-btn { background: rgba(255,255,255,0.2); color: #fff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; flex-shrink: 0; border: none; cursor: pointer; }
+/* Dipakai HANYA sebagai fallback otomatis (lewat onerror di layout.js) selama tokoqia-white.png
+   belum diupload - begitu file asli ada, class ini tidak pernah terpasang lagi. */
+.topbar.on-brand .brand img.css-invert-fallback { filter: brightness(0) invert(1); }
 
 .content { flex: 1; padding: 14px; padding-bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 16px); max-width: 960px; width: 100%; margin: 0 auto; }
 .content.wide { max-width: 1180px; }
@@ -181,6 +193,19 @@ button, input, select, textarea { font-family: inherit; font-size: 1rem; }
 .kpi .label { font-size: 0.7rem; color: var(--ink-muted); font-weight: 600; margin-bottom: 3px; }
 .kpi .value { font-size: 1.15rem; font-weight: 800; color: var(--ink); line-height: 1.2; }
 .kpi.accent .value { color: var(--red); }
+
+.status-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 640px) { .status-grid { grid-template-columns: repeat(3, 1fr); } }
+.status-cell { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; text-decoration: none; color: inherit; display: block; }
+.status-cell .label { font-size: 0.72rem; color: var(--ink-muted); font-weight: 600; margin-bottom: 3px; }
+.status-cell .value { font-size: 1.05rem; font-weight: 800; color: var(--ink); }
+.status-cell.warn .value { color: var(--warning); }
+.status-cell.danger .value { color: var(--danger); }
+
+.hero-userline { font-size: 0.78rem; color: var(--ink-muted); font-weight: 600; margin-top: 2px; }
+
+.footer-mini { text-align: center; padding: 18px 14px; color: var(--ink-muted); font-size: 0.72rem; line-height: 1.6; }
+.footer-mini strong { color: var(--ink); font-size: 0.78rem; }
 
 .stat-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .stat-list .row { padding: 10px 14px; border-bottom: 1px solid var(--border); }
