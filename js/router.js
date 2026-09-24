@@ -66,3 +66,4 @@ window.Router = (function () {
 
   return { register: register, navigate: navigate, render: render, currentPath: currentPath };
 })();
+
