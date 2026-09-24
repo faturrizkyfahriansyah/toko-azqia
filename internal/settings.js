@@ -113,14 +113,38 @@ Modules.settings = (function () {
   function renderPrinter(body) {
     var adapters = window.PrinterManager.availableAdapters();
     var current = window.PrinterManager.getPreferredAdapterName();
-    body.innerHTML = '<p>Pilih metode cetak struk default untuk perangkat kasir ini.</p>' +
+    body.innerHTML =
+      '<div class="card">' +
+      '<h3>Printer: PUTIAN POS RPP02N</h3>' +
+      '<div class="stat-list">' +
+      '<div class="row"><span>Kertas</span><span>58mm</span></div>' +
+      '<div class="row"><span>Lebar Cetak</span><span>48mm / 384 dot</span></div>' +
+      '<div class="row"><span>Codepage</span><span>PC850</span></div>' +
+      '<div class="row"><span>Protokol</span><span>ESC/POS compatible</span></div>' +
+      '</div></div>' +
+      '<p>Pilih metode koneksi default untuk perangkat kasir ini:</p>' +
       adapters.map(function (a) {
-        return '<div class="card row"><div><strong>' + a.label + '</strong><div class="muted">' + (a.available ? 'Tersedia di perangkat ini' : 'Tidak didukung di browser/perangkat ini') + '</div></div>' +
+        return '<div class="card row"><div><strong>' + a.label + '</strong><div class="muted">' + window.PrinterManager.statusLabel(a.id) + '</div></div>' +
           '<button class="btn ' + (current === a.id ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-select="' + a.id + '"' + (!a.available ? ' disabled' : '') + '>' + (current === a.id ? 'Terpilih' : 'Pilih') + '</button></div>';
       }).join('') +
-      '<p class="hint">Printer Bluetooth thermal (mis. PUTIAN 583-01) menggunakan Web Bluetooth - hanya berfungsi jika printer memakai profil BLE dan browser mendukungnya (Chrome/Edge Android/Desktop). Safari/iOS tidak mendukung Web Bluetooth sama sekali - gunakan Cetak via Browser di perangkat tersebut. Lihat docs/USER_GUIDE.md bagian Printer.</p>';
+      '<button class="btn btn-secondary btn-block" id="btn-test-print" style="margin-top:10px;">Test Print</button>' +
+      '<div id="test-print-status" class="muted" style="margin-top:8px;"></div>' +
+      '<p class="hint" style="margin-top:14px;">RPP02N kemungkinan besar memakai Bluetooth Classic/SPP (bukan BLE) berdasarkan pola pairingnya (PIN manual 0000). Web Bluetooth HANYA bisa untuk printer BLE - jika RPP02N tidak muncul saat memilih "Printer Bluetooth BLE", ini bukan error, memang di luar jangkauan Web Bluetooth. Jalur paling mungkin berhasil: pair printer lewat Bluetooth Windows lalu pilih "Windows - Bluetooth COM / USB (Serial)", atau gunakan "Cetak via Browser" di perangkat manapun. Lihat docs/KNOWN_LIMITATIONS.md bagian Printer untuk detail lengkap.</p>';
     Utils.qsa('[data-select]', body).forEach(function (b) {
       b.addEventListener('click', function () { window.PrinterManager.setPreferredAdapterName(b.getAttribute('data-select')); renderTab(); });
+    });
+    var testBtn = body.querySelector('#btn-test-print');
+    var statusEl = body.querySelector('#test-print-status');
+    testBtn.addEventListener('click', function () {
+      testBtn.disabled = true; testBtn.innerHTML = '<span class="spinner-inline"></span> Mencetak Test Print...';
+      statusEl.textContent = '';
+      window.PrinterManager.testPrint().then(function () {
+        statusEl.innerHTML = '<span class="badge green">Berhasil</span> Perintah cetak terkirim. Periksa hasil fisik di printer.';
+      }).catch(function (err) {
+        statusEl.innerHTML = '<span class="badge red">Gagal</span> ' + Utils.escapeHtml(err.message);
+      }).finally(function () {
+        testBtn.disabled = false; testBtn.textContent = 'Test Print';
+      });
     });
   }
 
