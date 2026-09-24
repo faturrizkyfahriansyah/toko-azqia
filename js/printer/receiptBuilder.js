@@ -136,5 +136,194 @@ window.ReceiptBuilder = (function () {
     );
   }
 
-  return { buildTextLines: buildTextLines, buildHtml: buildHtml, WIDTH: WIDTH };
+  // ================================================================================
+  // ESC/POS RAW BYTES (dipakai thermalAdapter.js / serialAdapter.js - transport nyata
+  // ke printer, BUKAN dialog print browser). Target referensi: PUTIAN POS RPP02N,
+  // firmware YC-6002, codepage default PC850, lebar cetak 384 dot (48mm @ 203dpi).
+  //
+  // PENTING - kejujuran command: ESC @ (init), ESC t 2 (pilih PC850), ESC a (align),
+  // ESC E (bold), dan GS v 0 (raster bitmap) adalah command ESC/POS standar Epson yang
+  // dipakai luas oleh printer kompatibel termasuk klon murah - risiko tidak-didukung
+  // RENDAH. Command native barcode (GS k) dan QR (GS ( k) TIDAK dipakai di sini karena
+  // sintaksnya berbeda-beda antar firmware dan BELUM terverifikasi ke YC-6002 - barcode/
+  // QR karena itu dikirim sebagai BITMAP (GS v 0), bukan command native, sesuai fallback
+  // yang diminta. TIDAK ADA command cutter (GS V) dikirim - printer ini tidak terkonfirmasi
+  // punya auto-cutter; struk diakhiri feed kertas untuk dirobek manual.
+  // ================================================================================
+  var ESC_CODEPAGE_PC850 = [0x1B, 0x74, 0x02]; // ESC t 2 - umum untuk PC850 di printer kompatibel Epson, PERLU VERIFIKASI fisik ke RPP02N
+
+  /** Normalisasi karakter yang TIDAK aman dikirim mentah ke codepage PC850 (mis. simbol Unicode/emoji). */
+  function ascSafe(str) {
+    if (str === null || str === undefined) return '';
+    var map = { '\u00A9': '(c)', '\u2713': 'OK', '\u2192': '->', '\u2013': '-', '\u2014': '-', '\u2018': "'", '\u2019': "'", '\u201C': '"', '\u201D': '"' };
+    str = String(str).replace(/[\u00A9\u2713\u2192\u2013\u2014\u2018\u2019\u201C\u201D]/g, function (c) { return map[c] || ''; });
+    return str.replace(/[^\x20-\x7E]/g, ''); // buang sisa non-ASCII/emoji yang tidak dipetakan
+  }
+
+  function ByteBuf() {
+    var arr = [];
+    return {
+      raw: function () { var a = Array.prototype.slice.call(arguments); arr = arr.concat(a); },
+      text: function (s) { s = ascSafe(s); for (var i = 0; i < s.length; i++) arr.push(s.charCodeAt(i) & 0xFF); },
+      bytes: function (u8) { for (var i = 0; i < u8.length; i++) arr.push(u8[i]); },
+      toUint8Array: function () { return new Uint8Array(arr); }
+    };
+  }
+
+  /**
+   * Membangun struk transaksi sebagai RAW ESC/POS bytes dengan formatting sesungguhnya
+   * (bold pada nama toko & TOTAL, rata tengah header/footer, tanpa command cutter).
+   * Mengembalikan Promise<Uint8Array> (async karena logo perlu dimuat & dikonversi dulu).
+   * includeLogo: default true - set false jika ingin lebih cepat/tanpa logo.
+   */
+  function buildEscPosBytes(data, includeLogo) {
+    if (includeLogo === undefined) includeLogo = true;
+    var buf = ByteBuf();
+    function align(n) { buf.raw(0x1B, 0x61, n); }
+    function bold(on) { buf.raw(0x1B, 0x45, on ? 1 : 0); }
+    function feed(n) { for (var i = 0; i < n; i++) buf.text('\n'); }
+
+    buf.raw(0x1B, 0x40); // ESC @ init
+    buf.raw.apply(null, ESC_CODEPAGE_PC850);
+
+    var logoPromise = includeLogo ? loadLogoRaster().catch(function () { return null; }) : Promise.resolve(null);
+
+    return logoPromise.then(function (logoRaster) {
+      align(1);
+      if (logoRaster) buf.bytes(logoRaster);
+      bold(true); buf.text(padCenter(data.store_name) + '\n'); bold(false);
+      wrap(data.store_tagline, WIDTH).forEach(function (l) { buf.text(padCenter(l) + '\n'); });
+      if (data.store_address) wrap(data.store_address, WIDTH).forEach(function (l) { buf.text(padCenter(l) + '\n'); });
+      align(0);
+      buf.text(line('-') + '\n');
+      buf.text('No. ' + data.sale_number + '\n');
+      buf.text(ascSafe(Utils.formatDate(data.date)) + '\n');
+      if (data.cashier_name) buf.text('Kasir: ' + data.cashier_name + '\n');
+      buf.text(line('-') + '\n');
+      data.items.forEach(function (it) {
+        wrap(it.name, WIDTH).forEach(function (l) { buf.text(l + '\n'); });
+        buf.text(twoCol(it.qty + ' ' + (it.unit || '') + ' x ' + rupiah(it.unit_price), rupiah(it.subtotal)) + '\n');
+      });
+      buf.text(line('-') + '\n');
+      buf.text(twoCol('Subtotal', rupiah(data.subtotal)) + '\n');
+      if (data.discount) buf.text(twoCol('Diskon', '-' + rupiah(data.discount)) + '\n');
+      buf.text(line('-') + '\n');
+      bold(true); buf.text(twoCol('TOTAL', rupiah(data.total)) + '\n'); bold(false);
+      buf.text(line('-') + '\n');
+      paymentLines(data).forEach(function (l) { buf.text(l + '\n'); });
+      buf.text(line('-') + '\n');
+      align(1);
+      feed(1);
+      buf.text(padCenter(data.footer_line1) + '\n');
+      buf.text(padCenter(data.footer_line2) + '\n');
+      bold(true); buf.text(padCenter(data.store_name) + '\n'); bold(false);
+      feed(1);
+      buf.text(padCenter(data.copyright) + '\n');
+      align(0);
+      feed(4); // TIDAK ADA command cutter - feed untuk robek manual (lihat KNOWN_LIMITATIONS.md)
+      return buf.toUint8Array();
+    });
+  }
+
+  /**
+   * Konversi <canvas> menjadi bytes raster ESC/POS (GS v 0), monokrom 1-bit, diresize agar
+   * lebar tidak melebihi maxWidthDots (default 384 dot = lebar cetak RPP02N pada 203dpi/48mm).
+   */
+  function canvasToEscPosRaster(canvas, maxWidthDots) {
+    maxWidthDots = maxWidthDots || 384;
+    var ctx = canvas.getContext('2d');
+    var w = canvas.width, h = canvas.height;
+    if (w > maxWidthDots) {
+      var ratio = maxWidthDots / w;
+      var newW = maxWidthDots, newH = Math.max(1, Math.round(h * ratio));
+      var tmp = document.createElement('canvas');
+      tmp.width = newW; tmp.height = newH;
+      tmp.getContext('2d').drawImage(canvas, 0, 0, newW, newH);
+      canvas = tmp; ctx = canvas.getContext('2d'); w = newW; h = newH;
+    }
+    var widthBytes = Math.ceil(w / 8);
+    var img = ctx.getImageData(0, 0, w, h).data;
+    var raster = new Uint8Array(widthBytes * h);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var idx = (y * w + x) * 4;
+        var r = img[idx], g = img[idx + 1], b = img[idx + 2], a = img[idx + 3];
+        var lum = r * 0.299 + g * 0.587 + b * 0.114;
+        var dark = a > 40 && lum < 150;
+        if (dark) raster[y * widthBytes + (x >> 3)] |= (0x80 >> (x % 8));
+      }
+    }
+    var xL = widthBytes & 0xFF, xH = (widthBytes >> 8) & 0xFF;
+    var yL = h & 0xFF, yH = (h >> 8) & 0xFF;
+    var out = new Uint8Array(8 + raster.length);
+    out.set([0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH], 0);
+    out.set(raster, 8);
+    return out;
+  }
+
+  var logoRasterCache = null;
+  /** Muat logo TOKOQIA yang SUDAH ADA di project (tidak membuat/generate logo baru) dan konversi ke raster. */
+  function loadLogoRaster() {
+    if (logoRasterCache) return Promise.resolve(logoRasterCache);
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        logoRasterCache = canvasToEscPosRaster(canvas, 200); // logo dibuat lebih kecil dari lebar penuh agar struk tidak didominasi logo
+        resolve(logoRasterCache);
+      };
+      img.onerror = function () { reject(new Error('Logo tidak ditemukan')); };
+      img.src = 'assets/icons/icon-192.png';
+    });
+  }
+
+  /** Bangun test print lengkap (dipakai tombol "Test Print" di Pengaturan → Printer). */
+  function buildTestPrintBytes() {
+    var buf = ByteBuf();
+    function align(n) { buf.raw(0x1B, 0x61, n); }
+    function bold(on) { buf.raw(0x1B, 0x45, on ? 1 : 0); }
+    buf.raw(0x1B, 0x40);
+    buf.raw.apply(null, ESC_CODEPAGE_PC850);
+
+    return loadLogoRaster().catch(function () { return null; }).then(function (logoRaster) {
+      align(1);
+      if (logoRaster) buf.bytes(logoRaster);
+      bold(true); buf.text('TOKOQIA\n'); bold(false);
+      buf.text('TOKO AZQIA\n\n');
+      buf.text('Printer Test\n\n');
+      align(0);
+      buf.text(line('-') + '\n');
+      buf.text(padCenter('58mm / 48mm printable') + '\n');
+      buf.text(padCenter('384 dots') + '\n');
+      buf.text(padCenter('PC850') + '\n');
+      buf.text(padCenter('ESC/POS') + '\n');
+      buf.text(line('-') + '\n\n');
+      buf.text('ABCDEFGHIJKLMNOPQRSTUVWXYZ\n');
+      buf.text('0123456789\n\n');
+
+      return BarcodeTools.renderBarcodeToCanvas('CODE128TEST', 50).then(function (canvas) {
+        align(1);
+        buf.text('CODE128 TEST\n');
+        buf.bytes(canvasToEscPosRaster(canvas, 384));
+        buf.text('\n');
+        return BarcodeTools.renderQrToCanvas('TOKOQIA-TEST-' + Date.now(), 160);
+      }).then(function (qrCanvas) {
+        buf.text('QR TEST\n');
+        buf.bytes(canvasToEscPosRaster(qrCanvas, 200));
+        buf.text('\n');
+        align(0);
+        buf.text(line('-') + '\n');
+        buf.text('\n\n\n\n'); // feed - tanpa command cutter
+        return buf.toUint8Array();
+      });
+    });
+  }
+
+  return {
+    buildTextLines: buildTextLines, buildHtml: buildHtml, WIDTH: WIDTH,
+    buildEscPosBytes: buildEscPosBytes, buildTestPrintBytes: buildTestPrintBytes,
+    canvasToEscPosRaster: canvasToEscPosRaster, ascSafe: ascSafe
+  };
 })();

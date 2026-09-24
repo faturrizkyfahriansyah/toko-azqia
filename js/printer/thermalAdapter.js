@@ -1,57 +1,54 @@
 /**
  * js/printer/thermalAdapter.js
- * Cetak langsung ke printer thermal 58mm (target: PUTIAN POS 583-01) lewat Web Bluetooth (ESC/POS).
+ * Cetak lewat Web Bluetooth (BLE GATT) - HANYA berfungsi untuk printer yang benar-benar
+ * memakai profil Bluetooth Low Energy (BLE), BUKAN Bluetooth Classic/SPP.
  *
- * KETERBATASAN JUJUR YANG WAJIB DIBACA (lihat juga docs/KNOWN_LIMITATIONS.md):
- * 1. Web Bluetooth API browser HANYA mendukung Bluetooth Low Energy (BLE GATT), TIDAK
- *    mendukung Bluetooth Classic/SPP. Banyak printer thermal murah (kemungkinan termasuk
- *    PUTIAN 583-01, tergantung revisi hardware) menggunakan Classic SPP, BUKAN BLE.
- *    Kami TIDAK BISA memastikan kompatibilitas tanpa menguji unit fisiknya langsung.
- *    Jika printer Anda ternyata SPP, adapter ini TIDAK akan menemukan device sama sekali -
- *    gunakan browserAdapter.js (fallback cetak lewat dialog print browser) sebagai gantinya.
- * 2. Web Bluetooth TIDAK tersedia sama sekali di Safari/iOS (semua browser iOS memakai
- *    WebKit yang tidak mengimplementasikan Web Bluetooth). Di iPhone/iPad, browserAdapter.js
- *    adalah SATU-SATUNYA jalur cetak yang berfungsi.
- * 3. SERVICE_UUID/CHARACTERISTIC_UUID di bawah adalah UUID umum yang dipakai banyak printer
- *    BLE UART murah (mis. chip BLE serial generik). PASTIKAN dulu UUID printer Anda yang
- *    sesungguhnya lewat aplikasi BLE scanner (mis. "nRF Connect") sebelum mengandalkan ini -
- *    lihat docs/PRINTER (bagian troubleshooting di docs/USER_GUIDE.md).
+ * KOREKSI PENTING (hasil audit fisik terhadap printer PUTIAN POS RPP02N / firmware YC-6002):
+ * Pola pairing printer ini (nama device di-broadcast "RPP02N" + PIN manual "0000") adalah
+ * pola KHAS Bluetooth Classic/SPP, BUKAN BLE. Web Bluetooth API browser TIDAK BISA melihat
+ * atau menyambung ke perangkat Classic/SPP sama sekali - ini keterbatasan platform, bukan bug
+ * di sini. Artinya adapter INI KEMUNGKINAN BESAR TIDAK AKAN MENEMUKAN RPP02N sama sekali saat
+ * diklik. Adapter ini TETAP DIPERTAHANKAN (tidak dihapus) karena masih valid untuk printer BLE
+ * lain di masa depan - tapi JANGAN diasumsikan sebagai jalur utama untuk RPP02N. Untuk RPP02N,
+ * gunakan serialAdapter.js (Windows, via Web Serial/Bluetooth COM) atau browserAdapter.js
+ * (fallback universal, semua platform) - lihat printerInterface.js untuk urutan prioritas.
+ *
+ * Keterbatasan lain yang tetap berlaku:
+ * - Web Bluetooth TIDAK tersedia sama sekali di Safari/iOS (WebKit tidak mengimplementasikannya).
+ * - SERVICE_UUID/CHARACTERISTIC_UUID di bawah adalah UUID umum BLE UART - HANYA relevan jika
+ *   printer target benar-benar BLE dan UUID-nya kebetulan sama; PASTIKAN dulu lewat BLE scanner
+ *   (mis. "nRF Connect") sebelum mengandalkan adapter ini untuk printer tertentu.
+ * - TIDAK ADA command cutter (GS V) yang dikirim - struk diakhiri feed kertas untuk dirobek
+ *   manual (lihat `docs/KNOWN_LIMITATIONS.md`).
  */
 window.PrinterThermalAdapter = (function () {
   var SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb'; // UMUM - VERIFIKASI dengan BLE scanner
   var CHARACTERISTIC_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb'; // UMUM - VERIFIKASI dengan BLE scanner
-  var cachedDevice = null;
+  var CONNECT_TIMEOUT_MS = 15000;
 
   function isAvailable() {
     return !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
   }
 
-  function textToEscPos(lines) {
-    var ESC = '\x1b', GS = '\x1d';
-    var body = lines.join('\n') + '\n\n\n';
-    var init = ESC + '@';
-    var cut = GS + 'V' + '\x00';
-    var full = init + body + cut;
-    var bytes = new Uint8Array(full.length);
-    for (var i = 0; i < full.length; i++) bytes[i] = full.charCodeAt(i) & 0xff;
-    return bytes;
+  function withTimeout(promise, ms, timeoutMessage) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error(timeoutMessage)); }, ms);
+      promise.then(function (v) { clearTimeout(timer); resolve(v); }, function (e) { clearTimeout(timer); reject(e); });
+    });
   }
 
   function connect() {
     if (!isAvailable()) {
-      return Promise.reject(new Error('Web Bluetooth tidak tersedia di browser ini (mis. Safari/iOS). Gunakan cetak browser sebagai gantinya.'));
+      return Promise.reject(new Error('Web Bluetooth tidak tersedia di browser/perangkat ini (mis. Safari/iOS). Gunakan koneksi Serial (Windows) atau Cetak via Browser.'));
     }
-    return navigator.bluetooth.requestDevice({
-      filters: [{ services: [SERVICE_UUID] }],
-      optionalServices: [SERVICE_UUID]
-    }).then(function (device) {
-      cachedDevice = device;
-      return device.gatt.connect();
-    }).then(function (server) {
-      return server.getPrimaryService(SERVICE_UUID);
-    }).then(function (service) {
-      return service.getCharacteristic(CHARACTERISTIC_UUID);
-    });
+    return withTimeout(
+      navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }], optionalServices: [SERVICE_UUID] })
+        .then(function (device) { return device.gatt.connect(); })
+        .then(function (server) { return server.getPrimaryService(SERVICE_UUID); })
+        .then(function (service) { return service.getCharacteristic(CHARACTERISTIC_UUID); }),
+      CONNECT_TIMEOUT_MS,
+      'Printer tidak ditemukan atau waktu koneksi habis. Pastikan printer menyala dan berada dalam jangkauan. Jika printer tidak muncul di daftar perangkat sama sekali, printer ini kemungkinan memakai Bluetooth Classic/SPP (bukan BLE) - gunakan koneksi Serial (Windows) atau Cetak via Browser sebagai gantinya.'
+    );
   }
 
   function writeInChunks(characteristic, bytes) {
@@ -67,10 +64,14 @@ window.PrinterThermalAdapter = (function () {
   }
 
   function print(receiptData) {
-    var lines = window.ReceiptBuilder.buildTextLines(receiptData);
-    var bytes = textToEscPos(lines);
-    return connect().then(function (characteristic) {
-      return writeInChunks(characteristic, bytes);
+    return window.ReceiptBuilder.buildEscPosBytes(receiptData).then(function (bytes) {
+      return connect().then(function (characteristic) { return writeInChunks(characteristic, bytes); });
+    });
+  }
+
+  function testPrint() {
+    return window.ReceiptBuilder.buildTestPrintBytes().then(function (bytes) {
+      return connect().then(function (characteristic) { return writeInChunks(characteristic, bytes); });
     });
   }
 
@@ -78,5 +79,5 @@ window.PrinterThermalAdapter = (function () {
     return window.ReceiptBuilder.buildTextLines(receiptData).join('\n');
   }
 
-  return { name: 'thermal-bluetooth', isAvailable: isAvailable, print: print, preview: preview };
+  return { name: 'thermal-bluetooth', isAvailable: isAvailable, print: print, testPrint: testPrint, preview: preview };
 })();
