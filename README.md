@@ -1,12 +1,13 @@
-# TOKO AZQIA — Sistem POS + Toko Online
+# TOKOQIA — Aplikasi POS + Toko Online untuk TOKO AZQIA
 
-**Versi: TOKO AZQIA V2.0.0** (upgrade dari TOKO AZKIA V1.0.0)
+**Versi: TOKOQIA V2.0.0** (upgrade dari TOKO AZKIA V1.0.0)
 *"Melayani Kebutuhan, Membangun Kepercayaan."*
 
-Sistem manajemen toko lengkap untuk TOKO AZQIA: kasir (POS) dengan Mixed Payment & satuan/
-konversi produk, stok, barang masuk, piutang pelanggan, hutang supplier, toko online (pickup &
-delivery), laporan, hingga backup — dibangun di atas Google Sheets + Google Apps Script
-(backend) dan PWA statis (frontend, di-hosting gratis di GitHub Pages).
+**TOKOQIA** adalah nama aplikasi/sistemnya. **TOKO AZQIA** adalah nama toko yang memakainya.
+Sistem manajemen toko lengkap: kasir (POS) dengan Mixed Payment & satuan/konversi produk, stok,
+barang masuk, piutang pelanggan, hutang supplier, promo, pesan, toko online (pickup & delivery),
+laporan, hingga backup — dibangun di atas Google Sheets + Google Apps Script (backend) dan PWA
+statis (frontend, di-hosting gratis di GitHub Pages).
 
 Dikembangkan oleh **FATUR RIZKY FAHRIANSYAH**, 2026.
 
