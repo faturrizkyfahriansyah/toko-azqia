@@ -6,8 +6,9 @@
  * Identitas: TOKOQIA (aplikasi) > TOKO AZQIA (toko) > halaman > Profil Saya (pengguna).
  */
 window.Layout = (function () {
-  var LOGO = 'assets/brand/logo-horizontal.png';
-  var LOGO_ICON = 'assets/brand/icon-192.png';
+  var LOGO = 'assets/icons/tokoqia-horizontal.png';
+  var LOGO_WHITE = 'assets/icons/tokoqia-white.png';
+  var LOGO_ICON = 'assets/icons/tokoqia-icon.png';
 
   // ---- Ikon SVG (bukan emoji) untuk header & bottom nav ----
   var ICONS = {
@@ -39,7 +40,7 @@ window.Layout = (function () {
   };
 
   var BOTTOM_NAV = [
-    { path: '#/internal/dashboard', label: 'Ringkasan', icon: ICONS.home },
+    { path: '#/internal/dashboard', label: 'Beranda', icon: ICONS.home },
     { path: '#/internal/pos', label: 'Kasir', icon: ICONS.pos },
     { path: '#/internal/products', label: 'Produk', icon: ICONS.box },
     { path: '#/internal/messages', label: 'Pesan', icon: ICONS.chat },
@@ -56,7 +57,7 @@ window.Layout = (function () {
   function drawerGroups() {
     var groups = [
       { label: 'UTAMA', items: [
-        { path: '#/internal/dashboard', label: 'Ringkasan', ic: ICONS.home },
+        { path: '#/internal/dashboard', label: 'Beranda', ic: ICONS.home },
         { path: '#/internal/pos', label: 'Kasir', ic: ICONS.pos },
         { path: '#/internal/products', label: 'Produk', ic: ICONS.box }
       ] },
@@ -98,8 +99,16 @@ window.Layout = (function () {
     return groups;
   }
 
-  function brandHtml(compact) {
-    return '<a href="#/shop/home" class="brand"><img src="' + LOGO + '" alt="TOKOQIA">' +
+  function brandHtml(compact, white) {
+    var src = white ? LOGO_WHITE : LOGO;
+    // onerror pada KEDUA varian: kalau file gagal dimuat (404/salah path/belum ter-upload),
+    // sembunyikan gambar & alt text-nya sepenuhnya (bukan biarkan browser menampilkan ikon
+    // patah + teks alt "TOKOQIA" dobel bareng span nama aplikasi di sebelahnya).
+    var onerrorHide = 'this.onerror=null;this.style.display=\'none\';';
+    var fallback = white
+      ? ' onerror="' + onerrorHide + 'this.style.display=\'\';this.src=\'' + LOGO + '\';this.classList.add(\'css-invert-fallback\');"'
+      : ' onerror="' + onerrorHide + '"';
+    return '<a href="#/shop/home" class="brand"><img src="' + src + '" alt=""' + fallback + '>' +
       (compact ? '' : '<span class="app-name">TOKOQIA</span>') + '</a>';
   }
 
@@ -118,6 +127,7 @@ window.Layout = (function () {
         '<a href="#/shop/cart" class="icon-btn" aria-label="Keranjang">' + ICONS.pos + (cartCount > 0 ? '<span class="bell-badge">' + cartCount + '</span>' : '') + '</a></div>' +
         '<div id="view-container" class="content"></div>' +
         renderBottomNav(SHOP_NAV);
+      setThemeColor('#ffffff');
       return;
     }
 
@@ -139,17 +149,18 @@ window.Layout = (function () {
       '<a class="sidebar-link desktop-profile" href="#" id="btn-logout-side"><span class="dot"></span>Keluar</a>' +
       '</div>' +
       '<div style="flex:1;display:flex;flex-direction:column;min-width:0;">' +
-      '<div class="topbar">' +
+      '<div class="topbar on-brand">' +
       '<button class="icon-btn" id="btn-drawer" aria-label="Menu">' + ICONS.menu + '</button>' +
-      brandHtml() +
+      brandHtml(false, true) +
       '<div class="topbar-spacer"></div>' +
       '<button class="icon-btn" id="btn-bell" aria-label="Notifikasi">' + ICONS.bell + '<span id="bell-badge" class="bell-badge" style="display:none;">0</span></button>' +
-      '<a href="#/internal/profile" class="icon-btn desktop-profile" id="btn-profile-top" aria-label="Profil" style="display:none;">' + ICONS.userCircle + '</a>' +
+      '<a href="#/internal/profile" class="avatar-btn" aria-label="Profil">' + avatarInitial() + '</a>' +
       '</div>' +
       '<div id="view-container" class="content"></div>' +
       renderBottomNav(BOTTOM_NAV) +
       '</div>' +
       renderDrawer(groups);
+    setThemeColor('#d81324');
 
     var logoutHandler = function (e) { e.preventDefault(); Auth.logout().then(function () { location.hash = '#/internal/login'; }); };
     var sideLogout = document.getElementById('btn-logout-side');
@@ -231,8 +242,21 @@ window.Layout = (function () {
     Utils.qsa('[data-path]').forEach(function (a) {
       a.classList.toggle('active', a.getAttribute('data-path') === '#' + path);
     });
-    var profileTop = document.getElementById('btn-profile-top');
-    if (profileTop && window.innerWidth >= 900) profileTop.style.display = 'flex';
+  }
+
+  /** Inisial 1-2 huruf dari nama pengguna login, untuk avatar bulat di header (bukan foto - belum ada fitur upload foto profil). */
+  function avatarInitial() {
+    var user = Auth.getUser();
+    var name = (user && user.full_name) ? user.full_name.trim() : '';
+    if (!name) return '?';
+    var parts = name.split(/\s+/);
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
+
+  /** Samakan warna status bar dengan background header saat ini (merah di internal, putih di toko). */
+  function setThemeColor(hex) {
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', hex);
   }
 
   return { renderShell: renderShell, highlightActive: highlightActive };
