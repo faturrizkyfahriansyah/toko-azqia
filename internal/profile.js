@@ -6,12 +6,19 @@ Modules.profile = (function () {
   function render(container) {
     return Api.call('profile.get', {}).then(function (d) {
       if (!container.isConnected) return;
-      container.innerHTML = '<h1>Profil</h1>' +
+      container.innerHTML = '<h1>Profil Saya</h1>' +
+        '<div class="card" style="text-align:center;">' +
+        '<div style="width:64px;height:64px;border-radius:50%;background:var(--surface-muted);display:flex;align-items:center;justify-content:center;margin:4px auto 10px;font-size:1.6rem;">🙍</div>' +
+        '<h2 style="margin-bottom:2px;">' + Utils.escapeHtml(d.full_name) + '</h2>' +
+        '<p class="muted" style="margin-bottom:10px;">' + Utils.escapeHtml(d.role) + '</p>' +
+        '<div class="stat-list" style="text-align:left;">' +
+        '<div class="row"><span>Status Akun</span><span class="badge green">Aktif</span></div>' +
+        '<div class="row"><span>Username</span><span>' + Utils.escapeHtml(d.username) + '</span></div>' +
+        '<div class="row"><span>Nomor HP</span><span>' + Utils.escapeHtml(d.phone || '-') + '</span></div>' +
+        '</div></div>' +
         '<div class="card"><h3>Data Diri</h3><form id="profile-form">' +
         '<div class="field"><label>Nama Lengkap</label><input name="full_name" value="' + Utils.escapeHtml(d.full_name) + '" required></div>' +
-        '<div class="field"><label>Username</label><input value="' + Utils.escapeHtml(d.username) + '" disabled></div>' +
         '<div class="field"><label>Telepon</label><input name="phone" value="' + Utils.escapeHtml(d.phone || '') + '"></div>' +
-        '<div class="field"><label>Role</label><input value="' + Utils.escapeHtml(d.role) + '" disabled></div>' +
         '<button class="btn btn-primary btn-block" type="submit">Simpan</button></form></div>' +
         '<div class="card"><h3>Ganti Password</h3><form id="password-form">' +
         '<div class="field"><label>Password Saat Ini</label><input name="current_password" type="password" required></div>' +
