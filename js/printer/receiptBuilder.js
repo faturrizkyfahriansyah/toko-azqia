@@ -98,40 +98,42 @@ window.ReceiptBuilder = (function () {
   function buildHtml(data) {
     var itemsHtml = data.items.map(function (it) {
       return '<div class="r-item"><div>' + Utils.escapeHtml(it.name) + '</div>' +
-        '<div class="r-row"><span>' + it.qty + ' ' + Utils.escapeHtml(it.unit || '') + ' x ' + Utils.formatCurrency(it.unit_price) + '</span><span>' + Utils.formatCurrency(it.subtotal) + '</span></div></div>';
+        '<div class="r-row"><span>' + it.qty + ' ' + Utils.escapeHtml(it.unit || '') + ' x ' + Utils.formatCurrency(it.unit_price) + '</span><span class="amt">' + Utils.formatCurrency(it.subtotal) + '</span></div></div>';
     }).join('');
     var paymentHtml = data.payments.length > 1
-      ? data.payments.map(function (pay) { return '<div class="r-row"><span>' + methodLabel(pay.method) + '</span><span>' + Utils.formatCurrency(pay.amount) + '</span></div>'; }).join('') +
-        '<div class="r-row r-bold"><span>Status</span><span>LUNAS</span></div>'
+      ? data.payments.map(function (pay) { return '<div class="r-row"><span>' + methodLabel(pay.method) + '</span><span class="amt">' + Utils.formatCurrency(pay.amount) + '</span></div>'; }).join('') +
+        '<div class="r-row r-bold"><span>Status</span><span class="amt">LUNAS</span></div>'
       : (function () {
           var pay = data.payments[0] || {};
-          if (pay.method === 'CASH') return '<div class="r-row"><span>Tunai</span><span>' + Utils.formatCurrency(pay.amount) + '</span></div><div class="r-row"><span>Kembali</span><span>' + Utils.formatCurrency(pay.change || 0) + '</span></div>';
-          if (pay.method === 'HUTANG') return '<div class="r-row"><span>Hutang</span><span>' + Utils.formatCurrency(pay.amount) + '</span></div>' + (data.customer_name ? '<div>Pelanggan: ' + Utils.escapeHtml(data.customer_name) + '</div>' : '') + '<div class="r-row"><span>Sisa Piutang</span><span>' + Utils.formatCurrency(pay.amount) + '</span></div>';
-          return '<div class="r-row"><span>' + methodLabel(pay.method) + '</span><span>' + Utils.formatCurrency(pay.amount) + '</span></div><div class="r-row"><span>Status</span><span>' + (pay.status === 'PENDING' ? 'MENUNGGU' : 'LUNAS') + '</span></div>';
+          if (pay.method === 'CASH') return '<div class="r-row"><span>Tunai</span><span class="amt">' + Utils.formatCurrency(pay.amount) + '</span></div><div class="r-row"><span>Kembali</span><span class="amt">' + Utils.formatCurrency(pay.change || 0) + '</span></div>';
+          if (pay.method === 'HUTANG') return '<div class="r-row"><span>Hutang</span><span class="amt">' + Utils.formatCurrency(pay.amount) + '</span></div>' + (data.customer_name ? '<div>Pelanggan: ' + Utils.escapeHtml(data.customer_name) + '</div>' : '') + '<div class="r-row"><span>Sisa Piutang</span><span class="amt">' + Utils.formatCurrency(pay.amount) + '</span></div>';
+          return '<div class="r-row"><span>' + methodLabel(pay.method) + '</span><span class="amt">' + Utils.formatCurrency(pay.amount) + '</span></div><div class="r-row"><span>Status</span><span class="amt">' + (pay.status === 'PENDING' ? 'MENUNGGU' : 'LUNAS') + '</span></div>';
         })();
     return (
-      '<div class="receipt-58">' +
-      '<div class="r-center r-bold">' + Utils.escapeHtml(data.store_name) + '</div>' +
+      '<div class="receipt">' +
+      '<img class="r-logo" src="assets/icons/tokoqia-receipt-icon-black.png" alt="">' +
+      '<div class="r-center r-store-name">' + Utils.escapeHtml(data.store_name) + '</div>' +
       '<div class="r-center">' + Utils.escapeHtml(data.store_tagline) + '</div>' +
       (data.store_address ? '<div class="r-center r-small">' + Utils.escapeHtml(data.store_address) + '</div>' : '') +
       '<div class="r-hr"></div>' +
-      '<div>No. ' + Utils.escapeHtml(data.sale_number) + '</div>' +
-      '<div>' + Utils.formatDate(data.date) + '</div>' +
-      (data.cashier_name ? '<div>Kasir: ' + Utils.escapeHtml(data.cashier_name) + '</div>' : '') +
+      '<div class="r-info"><span class="lbl">No.</span><span class="val">: ' + Utils.escapeHtml(data.sale_number) + '</span></div>' +
+      '<div class="r-info"><span class="lbl">Tanggal</span><span class="val">: ' + Utils.formatDate(data.date) + '</span></div>' +
+      (data.cashier_name ? '<div class="r-info"><span class="lbl">Kasir</span><span class="val">: ' + Utils.escapeHtml(data.cashier_name) + '</span></div>' : '') +
       '<div class="r-hr"></div>' +
       itemsHtml +
       '<div class="r-hr"></div>' +
-      '<div class="r-row"><span>Subtotal</span><span>' + Utils.formatCurrency(data.subtotal) + '</span></div>' +
-      (data.discount ? '<div class="r-row"><span>Diskon</span><span>-' + Utils.formatCurrency(data.discount) + '</span></div>' : '') +
+      '<div class="r-row"><span>Subtotal</span><span class="amt">' + Utils.formatCurrency(data.subtotal) + '</span></div>' +
+      (data.discount ? '<div class="r-row"><span>Diskon</span><span class="amt">-' + Utils.formatCurrency(data.discount) + '</span></div>' : '') +
       '<div class="r-hr"></div>' +
-      '<div class="r-row r-bold" style="font-size:1.1em;"><span>TOTAL</span><span>' + Utils.formatCurrency(data.total) + '</span></div>' +
-      '<div class="r-hr"></div>' +
+      '<div class="r-row r-bold r-total"><span>TOTAL</span><span class="amt">' + Utils.formatCurrency(data.total) + '</span></div>' +
       paymentHtml +
       '<div class="r-hr"></div>' +
-      '<div class="r-center">' + Utils.escapeHtml(data.footer_line1) + '</div>' +
-      '<div class="r-center">' + Utils.escapeHtml(data.footer_line2) + '</div>' +
-      '<div class="r-center r-bold">' + Utils.escapeHtml(data.store_name) + '</div>' +
-      '<div class="r-center r-small" style="margin-top:6px;">' + Utils.escapeHtml(data.copyright) + '</div>' +
+      '<div class="r-footer r-center">' +
+      '<div>' + Utils.escapeHtml(data.footer_line1) + '</div>' +
+      '<div>' + Utils.escapeHtml(data.footer_line2) + '</div>' +
+      '<div class="r-bold">' + Utils.escapeHtml(data.store_name) + '</div>' +
+      '<div class="r-small" style="margin-top:6px;">' + Utils.escapeHtml(data.copyright) + '</div>' +
+      '</div>' +
       '</div>'
     );
   }
@@ -275,7 +277,7 @@ window.ReceiptBuilder = (function () {
         resolve(logoRasterCache);
       };
       img.onerror = function () { reject(new Error('Logo tidak ditemukan')); };
-      img.src = 'assets/icons/icon-192.png';
+      img.src = 'assets/icons/tokoqia-receipt-icon-black.png';
     });
   }
 
