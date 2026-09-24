@@ -68,9 +68,33 @@ window.Utils = (function () {
     container.innerHTML = '<div class="spinner"></div>';
   }
 
+  /**
+   * Pemetaan TAMPILAN saja untuk status pesanan online (Bagian 6 audit "STATUS PESANAN ONLINE").
+   * Nilai status internal di backend (20_OnlineOrders.gs ORDER_STATUS_FLOW) TIDAK berubah -
+   * fungsi ini hanya menerjemahkan kode internal ke label rapi + warna badge konsisten untuk UI.
+   */
+  var ORDER_STATUS_MAP = {
+    'MENUNGGU PEMBAYARAN': { label: 'Menunggu Pembayaran', cls: 'grey' },
+    'MENUNGGU KONFIRMASI': { label: 'Menunggu Konfirmasi', cls: 'gold' },
+    'DIPROSES': { label: 'Diproses', cls: 'blue' },
+    'DIPERSIAPKAN': { label: 'Dipersiapkan', cls: 'blue' },
+    'SIAP DIAMBIL': { label: 'Siap Diambil', cls: 'gold' },
+    'DALAM PENGANTARAN': { label: 'Dalam Pengantaran', cls: 'blue' },
+    'SELESAI': { label: 'Selesai', cls: 'green' },
+    'DIBATALKAN': { label: 'Dibatalkan', cls: 'red' }
+  };
+  function orderStatusInfo(status) {
+    return ORDER_STATUS_MAP[status] || { label: status || '-', cls: 'grey' };
+  }
+  function orderStatusBadge(status) {
+    var info = orderStatusInfo(status);
+    return '<span class="badge ' + info.cls + '">' + escapeHtml(info.label) + '</span>';
+  }
+
   return {
     formatCurrency: formatCurrency, formatDate: formatDate, formatDateOnly: formatDateOnly,
     escapeHtml: escapeHtml, qs: qs, qsa: qsa, el: el, debounce: debounce,
-    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading
+    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading,
+    orderStatusInfo: orderStatusInfo, orderStatusBadge: orderStatusBadge
   };
 })();
