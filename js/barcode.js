@@ -7,6 +7,7 @@
 window.BarcodeTools = (function () {
   var jsBarcodeLoaded = null;
   var html5QrcodeLoaded = null;
+  var qrcodeLoaded = null;
 
   function loadScript(src) {
     return new Promise(function (resolve, reject) {
@@ -25,11 +26,58 @@ window.BarcodeTools = (function () {
     if (!html5QrcodeLoaded) html5QrcodeLoaded = loadScript('https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js');
     return html5QrcodeLoaded;
   }
+  /** Untuk GENERATE QR (beda dari html5-qrcode yang untuk SCAN via kamera). Dipakai cetak struk/label/test print. */
+  function ensureQrGenerator() {
+    if (window.QRCode) return Promise.resolve();
+    if (!qrcodeLoaded) qrcodeLoaded = loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+    return qrcodeLoaded;
+  }
 
   /** Render barcode CODE128 ke elemen <svg> yang diberikan. */
   function renderTo(svgEl, value) {
     return ensureJsBarcode().then(function () {
       window.JsBarcode(svgEl, value, { format: 'CODE128', width: 2, height: 60, displayValue: true, fontSize: 14, margin: 8 });
+    });
+  }
+
+  /** Generate QR code sebagai <canvas> tersembunyi (dipakai untuk print, bukan untuk scan kamera). */
+  function renderQrToCanvas(value, size) {
+    return ensureQrGenerator().then(function () {
+      return new Promise(function (resolve, reject) {
+        var holder = document.createElement('div');
+        holder.style.position = 'fixed'; holder.style.left = '-9999px'; holder.style.top = '-9999px';
+        document.body.appendChild(holder);
+        try {
+          new window.QRCode(holder, { text: value, width: size || 128, height: size || 128, correctLevel: window.QRCode.CorrectLevel.M });
+          setTimeout(function () {
+            var canvas = holder.querySelector('canvas');
+            var img = holder.querySelector('img');
+            if (canvas) {
+              document.body.removeChild(holder);
+              resolve(canvas);
+            } else if (img) {
+              // Fallback jika browser render sebagai <img> (jarang) - gambar ke canvas manual.
+              var c = document.createElement('canvas');
+              c.width = size || 128; c.height = size || 128;
+              c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+              document.body.removeChild(holder);
+              resolve(c);
+            } else {
+              document.body.removeChild(holder);
+              reject(new Error('QR gagal dirender.'));
+            }
+          }, 60);
+        } catch (e) { document.body.removeChild(holder); reject(e); }
+      });
+    });
+  }
+
+  /** Render barcode CODE128 sebagai <canvas> tersembunyi (untuk print raster, bukan tampilan layar). */
+  function renderBarcodeToCanvas(value, heightPx) {
+    return ensureJsBarcode().then(function () {
+      var canvas = document.createElement('canvas');
+      window.JsBarcode(canvas, value, { format: 'CODE128', width: 2, height: heightPx || 50, displayValue: true, fontSize: 12, margin: 4 });
+      return canvas;
     });
   }
 
@@ -60,5 +108,5 @@ window.BarcodeTools = (function () {
     });
   }
 
-  return { renderTo: renderTo, startCameraScan: startCameraScan };
+  return { renderTo: renderTo, startCameraScan: startCameraScan, renderQrToCanvas: renderQrToCanvas, renderBarcodeToCanvas: renderBarcodeToCanvas };
 })();
