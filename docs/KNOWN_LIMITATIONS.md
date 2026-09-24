@@ -78,17 +78,45 @@ sadar — bukan bug yang belum diperbaiki, dan bukan fitur yang "dipalsukan".
 
 ## Printer & Perangkat
 
-- **Kompatibilitas Bluetooth printer TIDAK DAPAT DIJAMIN tanpa pengujian unit fisik.** Web
-  Bluetooth API browser hanya mendukung Bluetooth Low Energy (BLE GATT), TIDAK mendukung
-  Bluetooth Classic/SPP. Banyak printer thermal murah — kemungkinan termasuk sebagian revisi
-  PUTIAN POS 583-01 — memakai Classic SPP. Jika printer Anda ternyata SPP, `thermalAdapter.js`
-  tidak akan menemukan perangkat sama sekali; gunakan mode "Cetak via Browser" (selalu berfungsi
-  di semua perangkat) sebagai gantinya. UUID service/characteristic BLE di `thermalAdapter.js`
-  adalah nilai umum yang dipakai banyak printer BLE UART murah dan HARUS diverifikasi dengan
-  aplikasi BLE scanner (mis. nRF Connect) untuk printer spesifik Anda.
-- **Web Bluetooth tidak tersedia sama sekali di Safari/iOS** (keterbatasan WebKit/Apple, bukan
-  keterbatasan sistem ini). Di iPhone/iPad, "Cetak via Browser" adalah satu-satunya jalur cetak
-  yang berfungsi.
+- **Printer referensi toko: PUTIAN POS RPP02N (firmware YC-6002), 58mm/48mm printable, 203dpi,
+  384 dot, codepage default PC850.** Pola pairing-nya (nama device broadcast + PIN manual "0000")
+  adalah indikasi KUAT bahwa printer ini memakai **Bluetooth Classic/SPP**, BUKAN Bluetooth Low
+  Energy (BLE) — ini penting karena Web Bluetooth API browser **hanya bisa mengakses perangkat
+  BLE**, tidak bisa sama sekali melihat/menyambung ke perangkat Classic/SPP. Karena itu:
+  - `thermalAdapter.js` (Web Bluetooth/BLE) **kemungkinan besar TIDAK akan menemukan RPP02N**
+    sama sekali saat dipilih — ini BUKAN bug, ini keterbatasan platform Web Bluetooth itu sendiri.
+    Adapter ini tetap dipertahankan untuk printer BLE lain di masa depan.
+  - Jalur yang lebih mungkin berhasil di **Windows**: `serialAdapter.js` (Web Serial API) — pair
+    RPP02N lewat Bluetooth Windows (PIN 0000) sehingga muncul sebagai port COM virtual, lalu
+    pilih "Windows - Bluetooth COM / USB (Serial)" di Pengaturan → Printer. Ini HANYA berfungsi
+    di Chrome/Edge versi **desktop**.
+  - Di **Android**, Web Serial hanya bisa untuk printer yang disambung **kabel USB** (bukan lewat
+    pairing Bluetooth) — jadi jalur Bluetooth langsung di Android untuk printer Classic/SPP
+    seperti ini **belum bisa** tanpa aplikasi native/bridge tambahan (di luar cakupan TOKOQIA,
+    yang murni web app).
+  - Di **iOS/Safari**, Web Bluetooth maupun Web Serial **sama sekali tidak tersedia** (keterbatasan
+    WebKit/Apple). Satu-satunya jalur adalah "Cetak via Browser", dan itu pun bergantung apakah
+    RPP02N mendukung AirPrint (belum dipastikan dari manual).
+  - **"Cetak via Browser" tetap tersedia di semua platform** sebagai jalur paling universal, tapi
+    di Android BUTUH printer terdaftar sebagai Android Print Service (biasanya lewat app resmi
+    dari vendor printer) — sekadar pairing Bluetooth di Settings TIDAK otomatis membuatnya
+    muncul di dialog print Android.
+  - UUID service/characteristic BLE di `thermalAdapter.js` adalah nilai umum, HANYA relevan jika
+    suatu saat dipakai printer BLE asli — bukan untuk RPP02N.
+- **Command ESC/POS yang dikirim** (`ReceiptBuilder.buildEscPosBytes`): init (`ESC @`), pilih
+  codepage PC850 (`ESC t 2` — nilai umum di printer kompatibel Epson, **belum diverifikasi
+  presisi ke firmware YC-6002**), bold (`ESC E`), rata tengah/kiri (`ESC a`), dan bitmap raster
+  (`GS v 0`) untuk logo. **TIDAK ADA command cutter (`GS V`) yang dikirim** — RPP02N tidak
+  terkonfirmasi punya auto-cutter, struk diakhiri feed kertas untuk dirobek manual.
+- **Barcode CODE128 dan QR Code pada struk/test print dikirim sebagai BITMAP** (raster `GS v 0`),
+  BUKAN command native barcode/QR (`GS k` / `GS ( k`) — karena sintaks command native berbeda-
+  beda antar firmware dan belum terverifikasi cocok dengan YC-6002. Bitmap adalah jalur lebih
+  aman karena command raster bitmap jauh lebih universal didukung printer ESC/POS.
+- **Karakter non-ASCII dinormalisasi otomatis** (`ReceiptBuilder.ascSafe`) sebelum dikirim ke
+  printer — mis. "©" diganti "(c)" — untuk menghindari karakter salah cetak akibat perbedaan
+  codepage.
+- **Web Bluetooth tidak tersedia sama sekali di Safari/iOS**, dan **Web Serial juga tidak
+  tersedia di Safari/iOS** (keterbatasan WebKit/Apple, bukan keterbatasan sistem ini).
 - **Barcode scanner USB/Bluetooth eksternal belum diuji ke perangkat fisik tertentu.** Secara
   teknis scanner jenis ini umumnya bekerja seperti keyboard (mengetik hasil scan otomatis), jadi
   seharusnya berfungsi langsung lewat kolom pencarian di Kasir/Barang Masuk tanpa kode tambahan
