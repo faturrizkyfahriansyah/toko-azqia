@@ -81,19 +81,30 @@ window.PrinterManager = (function () {
 
   function runWithFallback(action) {
     var args = Array.prototype.slice.call(arguments, 1);
+    // Buka jendela print KOSONG SEKARANG JUGA (synchronous, dalam call stack klik tombol yang
+    // sama) - HANYA untuk action print/testPrint. Ini mencegah "Popup diblokir" yang terjadi
+    // kalau window.open() baru dipanggil NANTI setelah percobaan Serial/Bluetooth gagal
+    // (proses async membuat browser tidak lagi menganggapnya aksi langsung dari klik).
+    // Kalau ternyata metode lain (bukan Browser Print) berhasil, jendela ini ditutup lagi.
+    var preOpenedWin = (action === 'print' || action === 'testPrint') ? window.PrinterBrowserAdapter.openBlankWindow() : null;
+
     return resolveAdapterId().then(function (id) {
       var job = trackJob(id, action);
       if (id === 'browser') {
         job.status = 'PRINTING';
-        return window.PrinterBrowserAdapter[action].apply(null, args).then(function (r) { job.status = 'SUCCESS'; return r; });
+        return window.PrinterBrowserAdapter[action].apply(null, args.concat([preOpenedWin])).then(function (r) { job.status = 'SUCCESS'; return r; });
       }
       var adapter = adapterFor(id);
       job.status = 'PRINTING';
-      return adapter[action].apply(null, args).then(function (r) { job.status = 'SUCCESS'; return r; }).catch(function (err) {
+      return adapter[action].apply(null, args).then(function (r) {
+        job.status = 'SUCCESS';
+        if (preOpenedWin && !preOpenedWin.closed) preOpenedWin.close(); // berhasil lewat non-browser - jendela cadangan tidak dipakai
+        return r;
+      }).catch(function (err) {
         job.status = 'FAILED'; job.error = err.message;
         Utils.toast('Cetak via ' + id + ' gagal (' + err.message + '), beralih ke Cetak via Browser.', 'error');
         var job2 = trackJob('browser', action);
-        return window.PrinterBrowserAdapter[action].apply(null, args).then(function (r) { job2.status = 'SUCCESS'; return r; });
+        return window.PrinterBrowserAdapter[action].apply(null, args.concat([preOpenedWin])).then(function (r) { job2.status = 'SUCCESS'; return r; });
       });
     });
   }

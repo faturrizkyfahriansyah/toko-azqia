@@ -10,6 +10,35 @@
 window.ReceiptBuilder = (function () {
   var WIDTH = 32;
 
+  // ================================================================================
+  // PENGATURAN STRUK (bisa diubah di Pengaturan -> Printer -> Pengaturan Struk, tanpa
+  // perlu ubah kode). Dibuat karena hasil cetak fisik ke RPP02N menunjukkan baris teks
+  // menempel tanpa jeda (mis. nomor transaksi langsung nempel ke tanggal) - indikasi kuat
+  // printer/driver ini butuh CRLF, bukan LF saja, untuk pindah baris. Sengaja dibuat bisa
+  // diatur (bukan ditebak sekali lalu di-hardcode) supaya bisa diuji coba sampai pas.
+  // ================================================================================
+  var SETTINGS_KEY = 'azqia_receipt_settings';
+  var DEFAULT_RECEIPT_SETTINGS = {
+    lineEnding: 'CRLF',  // 'LF' atau 'CRLF' - akhir baris yang dikirim ke printer (ESC/POS)
+    charWidth: 32,       // karakter per baris untuk mode teks ESC/POS
+    includeLogo: true,   // sertakan logo bitmap di struk & test print
+    feedLines: 4         // jumlah baris feed kosong di akhir sebelum dirobek manual
+  };
+  function getReceiptSettings() {
+    try {
+      var raw = localStorage.getItem(SETTINGS_KEY);
+      var parsed = raw ? JSON.parse(raw) : {};
+      var out = {};
+      for (var k in DEFAULT_RECEIPT_SETTINGS) out[k] = (parsed[k] !== undefined) ? parsed[k] : DEFAULT_RECEIPT_SETTINGS[k];
+      return out;
+    } catch (e) { return Object.assign({}, DEFAULT_RECEIPT_SETTINGS); }
+  }
+  function setReceiptSettings(patch) {
+    var updated = Object.assign({}, getReceiptSettings(), patch);
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+    return updated;
+  }
+
   function padCenter(text) {
     text = String(text);
     if (text.length >= WIDTH) return text.substring(0, WIDTH);
@@ -64,6 +93,7 @@ window.ReceiptBuilder = (function () {
   }
 
   function buildTextLines(data) {
+    WIDTH = getReceiptSettings().charWidth || 32;
     var L = [];
     L.push(padCenter(data.store_name));
     wrap(data.store_tagline, WIDTH).forEach(function (l) { L.push(padCenter(l)); });
@@ -159,14 +189,22 @@ window.ReceiptBuilder = (function () {
     if (str === null || str === undefined) return '';
     var map = { '\u00A9': '(c)', '\u2713': 'OK', '\u2192': '->', '\u2013': '-', '\u2014': '-', '\u2018': "'", '\u2019': "'", '\u201C': '"', '\u201D': '"' };
     str = String(str).replace(/[\u00A9\u2713\u2192\u2013\u2014\u2018\u2019\u201C\u201D]/g, function (c) { return map[c] || ''; });
-    return str.replace(/[^\x20-\x7E]/g, ''); // buang sisa non-ASCII/emoji yang tidak dipetakan
+    // PENTING: \n dan \r HARUS tetap dipertahankan (jangan ikut kena buang) - bug sebelumnya
+    // di sini menghapus SEMUA karakter di bawah 0x20 termasuk \n, menyebabkan seluruh baris
+    // struk menempel jadi satu string panjang tanpa jeda baris sama sekali saat dicetak fisik.
+    return str.replace(/[^\x20-\x7E\n\r]/g, ''); // buang sisa non-ASCII/emoji yang tidak dipetakan, TAPI simpan \n \r
   }
 
   function ByteBuf() {
     var arr = [];
+    var useCRLF = getReceiptSettings().lineEnding === 'CRLF';
     return {
       raw: function () { var a = Array.prototype.slice.call(arguments); arr = arr.concat(a); },
-      text: function (s) { s = ascSafe(s); for (var i = 0; i < s.length; i++) arr.push(s.charCodeAt(i) & 0xFF); },
+      text: function (s) {
+        s = ascSafe(s);
+        if (useCRLF) s = s.replace(/\n/g, '\r\n');
+        for (var i = 0; i < s.length; i++) arr.push(s.charCodeAt(i) & 0xFF);
+      },
       bytes: function (u8) { for (var i = 0; i < u8.length; i++) arr.push(u8[i]); },
       toUint8Array: function () { return new Uint8Array(arr); }
     };
@@ -179,7 +217,9 @@ window.ReceiptBuilder = (function () {
    * includeLogo: default true - set false jika ingin lebih cepat/tanpa logo.
    */
   function buildEscPosBytes(data, includeLogo) {
-    if (includeLogo === undefined) includeLogo = true;
+    var settings = getReceiptSettings();
+    WIDTH = settings.charWidth || 32;
+    if (includeLogo === undefined) includeLogo = settings.includeLogo;
     var buf = ByteBuf();
     function align(n) { buf.raw(0x1B, 0x61, n); }
     function bold(on) { buf.raw(0x1B, 0x45, on ? 1 : 0); }
@@ -222,7 +262,7 @@ window.ReceiptBuilder = (function () {
       feed(1);
       buf.text(padCenter(data.copyright) + '\n');
       align(0);
-      feed(4); // TIDAK ADA command cutter - feed untuk robek manual (lihat KNOWN_LIMITATIONS.md)
+      feed(settings.feedLines); // TIDAK ADA command cutter - feed untuk robek manual (lihat KNOWN_LIMITATIONS.md)
       return buf.toUint8Array();
     });
   }
@@ -283,13 +323,16 @@ window.ReceiptBuilder = (function () {
 
   /** Bangun test print lengkap (dipakai tombol "Test Print" di Pengaturan → Printer). */
   function buildTestPrintBytes() {
+    var settings = getReceiptSettings();
+    WIDTH = settings.charWidth || 32;
     var buf = ByteBuf();
     function align(n) { buf.raw(0x1B, 0x61, n); }
     function bold(on) { buf.raw(0x1B, 0x45, on ? 1 : 0); }
     buf.raw(0x1B, 0x40);
     buf.raw.apply(null, ESC_CODEPAGE_PC850);
 
-    return loadLogoRaster().catch(function () { return null; }).then(function (logoRaster) {
+    var logoPromise = settings.includeLogo ? loadLogoRaster().catch(function () { return null; }) : Promise.resolve(null);
+    return logoPromise.then(function (logoRaster) {
       align(1);
       if (logoRaster) buf.bytes(logoRaster);
       bold(true); buf.text('TOKOQIA\n'); bold(false);
@@ -301,6 +344,8 @@ window.ReceiptBuilder = (function () {
       buf.text(padCenter('384 dots') + '\n');
       buf.text(padCenter('PC850') + '\n');
       buf.text(padCenter('ESC/POS') + '\n');
+      buf.text(padCenter('Akhir baris: ' + settings.lineEnding) + '\n');
+      buf.text(padCenter('Lebar: ' + WIDTH + ' karakter') + '\n');
       buf.text(line('-') + '\n\n');
       buf.text('ABCDEFGHIJKLMNOPQRSTUVWXYZ\n');
       buf.text('0123456789\n\n');
@@ -317,7 +362,7 @@ window.ReceiptBuilder = (function () {
         buf.text('\n');
         align(0);
         buf.text(line('-') + '\n');
-        buf.text('\n\n\n\n'); // feed - tanpa command cutter
+        for (var i = 0; i < settings.feedLines; i++) buf.text('\n'); // feed - tanpa command cutter
         return buf.toUint8Array();
       });
     });
@@ -326,6 +371,7 @@ window.ReceiptBuilder = (function () {
   return {
     buildTextLines: buildTextLines, buildHtml: buildHtml, WIDTH: WIDTH,
     buildEscPosBytes: buildEscPosBytes, buildTestPrintBytes: buildTestPrintBytes,
-    canvasToEscPosRaster: canvasToEscPosRaster, ascSafe: ascSafe
+    canvasToEscPosRaster: canvasToEscPosRaster, ascSafe: ascSafe,
+    getReceiptSettings: getReceiptSettings, setReceiptSettings: setReceiptSettings
   };
 })();

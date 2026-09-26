@@ -51,10 +51,23 @@ window.PrinterBrowserAdapter = (function () {
 
   function isAvailable() { return true; } // selalu tersedia di semua browser modern
 
-  function openPrintWindow(title, bodyHtml) {
+  /**
+   * Buka jendela kosong SEKARANG JUGA (synchronous) - dipanggil oleh printerInterface.js
+   * TEPAT saat tombol diklik, SEBELUM ada proses async apa pun (coba Serial/Bluetooth dulu,
+   * dsb.). Ini WAJIB supaya browser (terutama Chrome Android) tetap menganggap window.open()
+   * sebagai aksi langsung dari pengguna - kalau window.open() dipanggil SETELAH await/Promise
+   * lain (mis. sesudah percobaan Serial gagal), browser sering MEMBLOKIRNYA sebagai popup,
+   * walau sebenarnya berasal dari klik pengguna yang sah. Mengembalikan null kalau tetap
+   * diblokir (jarang, tapi tetap ditangani).
+   */
+  function openBlankWindow() {
+    try { return window.open('', 'PRINT', 'height=600,width=400'); } catch (e) { return null; }
+  }
+
+  function openPrintWindow(title, bodyHtml, preOpenedWin) {
     return new Promise(function (resolve, reject) {
       try {
-        var win = window.open('', 'PRINT', 'height=600,width=400');
+        var win = preOpenedWin || openBlankWindow();
         if (!win) { reject(new Error('Popup diblokir browser. Izinkan popup untuk mencetak struk.')); return; }
         win.document.write('<html><head><title>' + title + '</title>' + styleFor(getPaperWidth()) + '</head><body>');
         win.document.write(bodyHtml);
@@ -66,11 +79,11 @@ window.PrinterBrowserAdapter = (function () {
     });
   }
 
-  function print(receiptData) {
-    return openPrintWindow('Struk ' + receiptData.sale_number, window.ReceiptBuilder.buildHtml(receiptData));
+  function print(receiptData, preOpenedWin) {
+    return openPrintWindow('Struk ' + receiptData.sale_number, window.ReceiptBuilder.buildHtml(receiptData), preOpenedWin);
   }
 
-  function testPrint() {
+  function testPrint(preOpenedWin) {
     var mm = getPaperWidth();
     var html = '<div class="receipt r-center">' +
       '<img class="r-logo" src="assets/icons/tokoqia-receipt-icon-black.png" alt="">' +
@@ -83,7 +96,7 @@ window.PrinterBrowserAdapter = (function () {
       '<div class="r-hr"></div>' +
       '<div class="r-small">(Test Print via Browser tidak memakai command ESC/POS - hanya mengecek lebar &amp; tampilan kertas.)</div>' +
       '</div>';
-    return openPrintWindow('Test Print', html);
+    return openPrintWindow('Test Print', html, preOpenedWin);
   }
 
   function preview(receiptData) {
@@ -92,6 +105,6 @@ window.PrinterBrowserAdapter = (function () {
 
   return {
     name: 'browser', isAvailable: isAvailable, print: print, testPrint: testPrint, preview: preview,
-    getPaperWidth: getPaperWidth, setPaperWidth: setPaperWidth
+    getPaperWidth: getPaperWidth, setPaperWidth: setPaperWidth, openBlankWindow: openBlankWindow
   };
 })();
