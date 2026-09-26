@@ -107,19 +107,37 @@ Modules.pos = (function () {
           '<div class="qty-control"><button data-dec="' + idx + '">-</button><span>' + l.qty + '</span><button data-inc="' + idx + '">+</button></div>' +
           '<button class="btn btn-ghost btn-sm" data-remove="' + idx + '">Hapus</button></div>';
       }).join('');
-      Utils.qsa('[data-inc]', box).forEach(function (b) { b.addEventListener('click', function () { cart[+b.getAttribute('data-inc')].qty++; renderCart(); }); });
+      // Setiap handler dijaga (cart[idx] dicek dulu) - kalau tombol lama sempat ter-klik SETELAH
+      // keranjang berubah/direset (mis. sehabis transaksi berhasil), tidak menyebabkan error
+      // "Cannot read properties of undefined", cukup diabaikan dengan aman.
+      Utils.qsa('[data-inc]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var l = cart[+b.getAttribute('data-inc')];
+          if (!l) return;
+          l.qty++; renderCart();
+        });
+      });
       Utils.qsa('[data-dec]', box).forEach(function (b) {
         b.addEventListener('click', function () {
-          var l = cart[+b.getAttribute('data-dec')];
-          l.qty--; if (l.qty <= 0) cart.splice(+b.getAttribute('data-dec'), 1);
+          var idx = +b.getAttribute('data-dec');
+          var l = cart[idx];
+          if (!l) return;
+          l.qty--; if (l.qty <= 0) cart.splice(idx, 1);
           renderCart();
         });
       });
-      Utils.qsa('[data-remove]', box).forEach(function (b) { b.addEventListener('click', function () { cart.splice(+b.getAttribute('data-remove'), 1); renderCart(); }); });
+      Utils.qsa('[data-remove]', box).forEach(function (b) {
+        b.addEventListener('click', function () {
+          var idx = +b.getAttribute('data-remove');
+          if (!cart[idx]) return;
+          cart.splice(idx, 1); renderCart();
+        });
+      });
       Utils.qsa('[data-unit-switch]', box).forEach(function (sel) {
         sel.addEventListener('change', function () {
           var idx = +sel.getAttribute('data-unit-switch');
           var l = cart[idx];
+          if (!l) return;
           var u = l.availableUnits.filter(function (x) { return x.unit_id === sel.value; })[0];
           if (!u) return;
           l.unit_id = u.unit_id; l.unit_name = u.unit_name;
