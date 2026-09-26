@@ -51,8 +51,15 @@ window.PrinterSerialAdapter = (function () {
     if (!isAvailable()) {
       return Promise.reject(new Error('Web Serial tidak tersedia di browser/perangkat ini. Fitur ini hanya berfungsi di Chrome/Edge versi desktop (Windows/macOS/Linux/ChromeOS), atau Android khusus untuk printer yang disambung kabel USB. Gunakan Cetak via Browser sebagai gantinya.'));
     }
+    // Kalau port dari koneksi SEBELUMNYA masih terbuka (mis. Test Print lalu lanjut cetak
+    // struk), PAKAI ULANG langsung - jangan panggil .open() lagi di port yang sama, itu
+    // penyebab error "The port is already open."
+    if (cachedPort && cachedPort.readable) {
+      return Promise.resolve(cachedPort);
+    }
     return withTimeout(
       navigator.serial.requestPort({}).then(function (port) {
+        if (port.readable) { cachedPort = port; return port; } // sudah terbuka dari sesi lain
         return port.open({ baudRate: 9600 }).then(function () { cachedPort = port; return port; });
       }),
       CONNECT_TIMEOUT_MS,
@@ -60,6 +67,10 @@ window.PrinterSerialAdapter = (function () {
     ).catch(function (err) {
       if (err && err.name === 'NotFoundError') {
         throw new Error('Tidak ada port dipilih. Pastikan printer sudah di-pair (Windows Bluetooth Settings, PIN 0000) atau tersambung via USB sebelum mencoba lagi.');
+      }
+      if (err && /already open/i.test(err.message || '')) {
+        // Port ternyata sudah terbuka (race dengan percobaan sebelumnya) - anggap sudah siap pakai.
+        if (cachedPort) return cachedPort;
       }
       throw err;
     });
@@ -71,6 +82,7 @@ window.PrinterSerialAdapter = (function () {
       writer.releaseLock();
     }).catch(function (err) {
       try { writer.releaseLock(); } catch (e) {}
+      if (port === cachedPort) cachedPort = null; // port kemungkinan sudah putus - jangan dipakai ulang
       throw err;
     });
   }
