@@ -143,17 +143,50 @@ Modules.settings = (function () {
         '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '58' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="58">58mm</button>' +
         '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '80' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="80">80mm</button>' +
         '</div></div>' +
-        '<div class="card" id="receipt-settings-panel"><h3 style="font-size:0.85rem;">Pengaturan Struk (ESC/POS)</h3>' +
-        '<p class="hint" style="margin-top:0;">Sesuaikan sampai hasil cetak fisik rapi. Kalau baris teks menempel tanpa jeda di kertas asli, coba ganti "Akhir Baris".</p>' +
+        '<div class="card" id="receipt-settings-panel"><h3 style="font-size:0.85rem;">Pengaturan Struk — Umum</h3>' +
+        '<p class="hint" style="margin-top:0;">Kalau baris teks menempel tanpa jeda di kertas asli, coba ganti "Akhir Baris".</p>' +
         receiptSettingRow('Akhir Baris', [
           { value: 'CRLF', label: 'CRLF (disarankan)' },
           { value: 'LF', label: 'LF saja' }
         ], rs.lineEnding, 'lineEnding') +
-        '<div class="field" style="margin-bottom:8px;"><label>Lebar Karakter per Baris</label><input type="number" id="rs-charwidth" value="' + rs.charWidth + '" min="16" max="64" style="max-width:120px;"></div>' +
-        '<div class="field" style="margin-bottom:8px;"><label>Baris Feed di Akhir Struk</label><input type="number" id="rs-feedlines" value="' + rs.feedLines + '" min="0" max="10" style="max-width:120px;"></div>' +
-        '<label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;margin-bottom:4px;"><input type="checkbox" id="rs-logo"' + (rs.includeLogo ? ' checked' : '') + '> Sertakan logo di struk & test print</label>' +
-        '<button class="btn btn-outline btn-sm" id="btn-save-receipt-settings" style="margin-top:8px;">Simpan Pengaturan</button>' +
+        '<div class="field" style="margin-bottom:8px;"><label>Lebar Karakter - Font Normal</label><input type="number" id="rs-charwidth" value="' + rs.charWidth + '" min="16" max="64" style="max-width:120px;"></div>' +
+        '<div class="field" style="margin-bottom:8px;"><label>Lebar Karakter - Font Kecil</label><input type="number" id="rs-condensedwidth" value="' + rs.condensedWidth + '" min="16" max="80" style="max-width:120px;"></div>' +
+        '<div class="field" style="margin-bottom:0;"><label>Baris Feed di Akhir Struk</label><input type="number" id="rs-feedlines" value="' + rs.feedLines + '" min="0" max="10" style="max-width:120px;"></div>' +
         '</div>' +
+
+        '<div class="card"><h3 style="font-size:0.85rem;">1. Logo</h3>' +
+        checkboxRow('rs-logo-show', 'Tampilkan logo di struk', rs.logoShow) +
+        receiptSettingRow('Ukuran Logo', [
+          { value: 'small', label: 'Kecil' }, { value: 'medium', label: 'Sedang' }, { value: 'large', label: 'Besar' }
+        ], rs.logoSize, 'logoSize') +
+        '</div>' +
+
+        '<div class="card"><h3 style="font-size:0.85rem;">2. Header (Nama Toko, Tagline, Alamat)</h3>' +
+        checkboxRow('rs-header-tagline', 'Tampilkan tagline', rs.headerShowTagline) +
+        checkboxRow('rs-header-address', 'Tampilkan alamat toko', rs.headerShowAddress) +
+        receiptSettingRow('Ukuran Font', [
+          { value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }
+        ], rs.headerFontSize, 'headerFontSize') +
+        '</div>' +
+
+        '<div class="card"><h3 style="font-size:0.85rem;">3. Info Transaksi (No. / Tanggal / Kasir)</h3>' +
+        '<p class="hint" style="margin-top:0;">Nomor transaksi & tanggal selalu tampil (data penting, tidak bisa disembunyikan).</p>' +
+        checkboxRow('rs-info-cashier', 'Tampilkan nama kasir', rs.infoShowCashier) +
+        receiptSettingRow('Ukuran Font', [
+          { value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }
+        ], rs.infoFontSize, 'infoFontSize') +
+        '</div>' +
+
+        '<div class="card"><h3 style="font-size:0.85rem;">4. Footer</h3>' +
+        checkboxRow('rs-footer-thanks', 'Tampilkan ucapan terima kasih', rs.footerShowThanks) +
+        checkboxRow('rs-footer-storename', 'Tampilkan nama toko di footer', rs.footerShowStoreName) +
+        checkboxRow('rs-footer-copyright', 'Tampilkan baris hak cipta', rs.footerShowCopyright) +
+        receiptSettingRow('Ukuran Font', [
+          { value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }
+        ], rs.footerFontSize, 'footerFontSize') +
+        '</div>' +
+
+        '<button class="btn btn-primary btn-block" id="btn-save-receipt-settings" style="margin-bottom:10px;">Simpan Semua Pengaturan Struk</button>' +
         '<div class="card" id="bridge-panel"><h3 style="font-size:0.85rem;">TOKOQIA Local Print Bridge</h3>' +
         '<p class="hint">Untuk printer Bluetooth Classic/SPP seperti RPP02N yang tidak terjangkau Web Bluetooth. Jalankan <code>node bridge.js</code> dulu di komputer ini - lihat <code>bridge/node-bridge/README.md</code>.</p>' +
         '<div id="bridge-port-list" class="muted">' + (cap.localBridge ? 'Klik "Cari Printer" untuk memuat daftar port.' : 'Bridge belum aktif - jalankan node bridge.js terlebih dahulu.') + '</div>' +
@@ -174,6 +207,9 @@ Modules.settings = (function () {
             return '<button class="btn btn-sm ' + (current === o.value ? 'btn-primary' : 'btn-outline') + '" data-rs="' + name + '" data-rs-value="' + o.value + '">' + o.label + '</button>';
           }).join('') + '</div></div>';
       }
+      function checkboxRow(id, label, checked) {
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;margin-bottom:8px;"><input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + '> ' + label + '</label>';
+      }
 
       Utils.qsa('[data-select]', body).forEach(function (b) {
         b.addEventListener('click', function () { window.PrinterManager.setPreferredAdapterName(b.getAttribute('data-select')); renderTab(); });
@@ -193,8 +229,15 @@ Modules.settings = (function () {
       if (saveRsBtn) saveRsBtn.addEventListener('click', function () {
         window.ReceiptBuilder.setReceiptSettings({
           charWidth: Math.max(16, Math.min(64, Number(body.querySelector('#rs-charwidth').value) || 32)),
+          condensedWidth: Math.max(16, Math.min(80, Number(body.querySelector('#rs-condensedwidth').value) || 42)),
           feedLines: Math.max(0, Math.min(10, Number(body.querySelector('#rs-feedlines').value) || 4)),
-          includeLogo: body.querySelector('#rs-logo').checked
+          logoShow: body.querySelector('#rs-logo-show').checked,
+          headerShowTagline: body.querySelector('#rs-header-tagline').checked,
+          headerShowAddress: body.querySelector('#rs-header-address').checked,
+          infoShowCashier: body.querySelector('#rs-info-cashier').checked,
+          footerShowThanks: body.querySelector('#rs-footer-thanks').checked,
+          footerShowStoreName: body.querySelector('#rs-footer-storename').checked,
+          footerShowCopyright: body.querySelector('#rs-footer-copyright').checked
         });
         Utils.toast('Pengaturan struk disimpan. Coba Test Print untuk melihat hasilnya.', 'success');
       });
