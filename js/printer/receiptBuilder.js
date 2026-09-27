@@ -19,10 +19,25 @@ window.ReceiptBuilder = (function () {
   // ================================================================================
   var SETTINGS_KEY = 'azqia_receipt_settings';
   var DEFAULT_RECEIPT_SETTINGS = {
-    lineEnding: 'CRLF',  // 'LF' atau 'CRLF' - akhir baris yang dikirim ke printer (ESC/POS)
-    charWidth: 32,       // karakter per baris untuk mode teks ESC/POS
-    includeLogo: true,   // sertakan logo bitmap di struk & test print
-    feedLines: 4         // jumlah baris feed kosong di akhir sebelum dirobek manual
+    lineEnding: 'CRLF',   // 'LF' atau 'CRLF' - akhir baris yang dikirim ke printer (ESC/POS)
+    charWidth: 32,        // karakter per baris untuk mode teks ESC/POS normal (Font A)
+    condensedWidth: 42,   // karakter per baris untuk teks kecil/rapat (Font B)
+    feedLines: 4,         // jumlah baris feed kosong di akhir sebelum dirobek manual
+    // --- Bagian Logo ---
+    logoShow: true,
+    logoSize: 'medium',   // 'small' (150px) / 'medium' (200px) / 'large' (260px) - lebar raster sebelum dikirim
+    // --- Bagian Header (nama toko, tagline, alamat) ---
+    headerShowTagline: true,
+    headerShowAddress: true,
+    headerFontSize: 'condensed', // 'normal' atau 'condensed' (font kecil bawaan printer)
+    // --- Bagian Info Transaksi (No./Tanggal/Kasir) ---
+    infoShowCashier: true,
+    infoFontSize: 'normal',
+    // --- Bagian Footer (ucapan terima kasih, nama toko, copyright) ---
+    footerShowThanks: true,
+    footerShowStoreName: true,
+    footerShowCopyright: true,
+    footerFontSize: 'condensed'
   };
   function getReceiptSettings() {
     try {
@@ -183,6 +198,9 @@ window.ReceiptBuilder = (function () {
   // punya auto-cutter; struk diakhiri feed kertas untuk dirobek manual.
   // ================================================================================
   var ESC_CODEPAGE_PC850 = [0x1B, 0x74, 0x02]; // ESC t 2 - umum untuk PC850 di printer kompatibel Epson, PERLU VERIFIKASI fisik ke RPP02N
+  var ESC_FONT_A = [0x1B, 0x4D, 0x00]; // ESC M 0 - font normal (dipakai nama toko, item, TOTAL - bagian penting)
+  var ESC_FONT_B = [0x1B, 0x4D, 0x01]; // ESC M 1 - font kecil/rapat, standar Epson - dipakai tagline/alamat/footer
+                                        // supaya muat 1 baris & tidak terpotong ganjil, PERLU VERIFIKASI rasio lebar ke RPP02N
 
   /** Normalisasi karakter yang TIDAK aman dikirim mentah ke codepage PC850 (mis. simbol Unicode/emoji). */
   function ascSafe(str) {
@@ -219,28 +237,35 @@ window.ReceiptBuilder = (function () {
   function buildEscPosBytes(data, includeLogo) {
     var settings = getReceiptSettings();
     WIDTH = settings.charWidth || 32;
-    if (includeLogo === undefined) includeLogo = settings.includeLogo;
+    var condensedW = settings.condensedWidth || 42;
+    if (includeLogo === undefined) includeLogo = settings.logoShow;
     var buf = ByteBuf();
     function align(n) { buf.raw(0x1B, 0x61, n); }
     function bold(on) { buf.raw(0x1B, 0x45, on ? 1 : 0); }
+    function font(small) { buf.raw.apply(null, small ? ESC_FONT_B : ESC_FONT_A); }
     function feed(n) { for (var i = 0; i < n; i++) buf.text('\n'); }
+    function setFont(sizeKey) { font(sizeKey === 'condensed'); WIDTH = sizeKey === 'condensed' ? condensedW : (settings.charWidth || 32); }
 
     buf.raw(0x1B, 0x40); // ESC @ init
     buf.raw.apply(null, ESC_CODEPAGE_PC850);
 
-    var logoPromise = includeLogo ? loadLogoRaster().catch(function () { return null; }) : Promise.resolve(null);
+    var logoPromise = includeLogo ? loadLogoRaster(settings.logoSize).catch(function () { return null; }) : Promise.resolve(null);
 
     return logoPromise.then(function (logoRaster) {
       align(1);
       if (logoRaster) buf.bytes(logoRaster);
       bold(true); buf.text(padCenter(data.store_name) + '\n'); bold(false);
-      wrap(data.store_tagline, WIDTH).forEach(function (l) { buf.text(padCenter(l) + '\n'); });
-      if (data.store_address) wrap(data.store_address, WIDTH).forEach(function (l) { buf.text(padCenter(l) + '\n'); });
+      setFont(settings.headerFontSize);
+      if (settings.headerShowTagline) wrap(data.store_tagline, WIDTH).forEach(function (l) { buf.text(padCenter(l) + '\n'); });
+      if (settings.headerShowAddress && data.store_address) wrap(data.store_address, WIDTH).forEach(function (l) { buf.text(padCenter(l) + '\n'); });
+      setFont('normal');
       align(0);
       buf.text(line('-') + '\n');
+      setFont(settings.infoFontSize);
       buf.text('No. ' + data.sale_number + '\n');
       buf.text(ascSafe(Utils.formatDate(data.date)) + '\n');
-      if (data.cashier_name) buf.text('Kasir: ' + data.cashier_name + '\n');
+      if (settings.infoShowCashier && data.cashier_name) buf.text('Kasir: ' + data.cashier_name + '\n');
+      setFont('normal');
       buf.text(line('-') + '\n');
       data.items.forEach(function (it) {
         wrap(it.name, WIDTH).forEach(function (l) { buf.text(l + '\n'); });
@@ -256,11 +281,17 @@ window.ReceiptBuilder = (function () {
       buf.text(line('-') + '\n');
       align(1);
       feed(1);
-      buf.text(padCenter(data.footer_line1) + '\n');
-      buf.text(padCenter(data.footer_line2) + '\n');
-      bold(true); buf.text(padCenter(data.store_name) + '\n'); bold(false);
+      setFont(settings.footerFontSize);
+      if (settings.footerShowThanks) {
+        buf.text(padCenter(data.footer_line1) + '\n');
+        buf.text(padCenter(data.footer_line2) + '\n');
+      }
+      setFont('normal');
+      if (settings.footerShowStoreName) { bold(true); buf.text(padCenter(data.store_name) + '\n'); bold(false); }
       feed(1);
-      buf.text(padCenter(data.copyright) + '\n');
+      setFont(settings.footerFontSize);
+      if (settings.footerShowCopyright) buf.text(padCenter(data.copyright) + '\n');
+      setFont('normal');
       align(0);
       feed(settings.feedLines); // TIDAK ADA command cutter - feed untuk robek manual (lihat KNOWN_LIMITATIONS.md)
       return buf.toUint8Array();
@@ -303,18 +334,20 @@ window.ReceiptBuilder = (function () {
     return out;
   }
 
-  var logoRasterCache = null;
   /** Muat logo TOKOQIA yang SUDAH ADA di project (tidak membuat/generate logo baru) dan konversi ke raster. */
-  function loadLogoRaster() {
-    if (logoRasterCache) return Promise.resolve(logoRasterCache);
+  var LOGO_SIZE_PX = { small: 150, medium: 200, large: 260 };
+  var logoRasterCacheBySize = {};
+  function loadLogoRaster(sizeKey) {
+    var px = LOGO_SIZE_PX[sizeKey] || LOGO_SIZE_PX.medium;
+    if (logoRasterCacheBySize[px]) return Promise.resolve(logoRasterCacheBySize[px]);
     return new Promise(function (resolve, reject) {
       var img = new Image();
       img.onload = function () {
         var canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
         canvas.getContext('2d').drawImage(img, 0, 0);
-        logoRasterCache = canvasToEscPosRaster(canvas, 200); // logo dibuat lebih kecil dari lebar penuh agar struk tidak didominasi logo
-        resolve(logoRasterCache);
+        logoRasterCacheBySize[px] = canvasToEscPosRaster(canvas, px); // dibuat lebih kecil dari lebar penuh agar struk tidak didominasi logo
+        resolve(logoRasterCacheBySize[px]);
       };
       img.onerror = function () { reject(new Error('Logo tidak ditemukan')); };
       img.src = 'assets/icons/tokoqia-receipt-icon-black.png';
@@ -331,7 +364,7 @@ window.ReceiptBuilder = (function () {
     buf.raw(0x1B, 0x40);
     buf.raw.apply(null, ESC_CODEPAGE_PC850);
 
-    var logoPromise = settings.includeLogo ? loadLogoRaster().catch(function () { return null; }) : Promise.resolve(null);
+    var logoPromise = settings.logoShow ? loadLogoRaster(settings.logoSize).catch(function () { return null; }) : Promise.resolve(null);
     return logoPromise.then(function (logoRaster) {
       align(1);
       if (logoRaster) buf.bytes(logoRaster);
