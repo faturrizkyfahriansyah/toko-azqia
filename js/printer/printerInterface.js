@@ -10,8 +10,8 @@
  *
  * MODE 'auto' (DEFAULT): PrinterManager mendeteksi capability browser secara runtime saat tombol
  * cetak ditekan, dan memilih metode TERBAIK yang tersedia - bukan langsung ke Browser Print/A4.
- * Prioritas: Web Serial > Web Bluetooth(BLE) > Local Bridge > Browser Print (fallback jujur,
- * bukan diam-diam). Pengguna tetap bisa memaksa satu metode tertentu lewat Pengaturan -> Printer.
+ * Prioritas: Serial (hanya bila port sudah dihubungkan) > Local Bridge (bila aktif) > Browser Print
+ * (fallback jujur, bukan diam-diam). Web Bluetooth BLE tidak ikut mode otomatis. Pengguna tetap bisa memaksa satu metode tertentu lewat Pengaturan -> Printer.
  *
  * TIDAK PERNAH melaporkan "berhasil terhubung/tercetak" jika sebenarnya gagal - setiap error
  * dari adapter diteruskan apa adanya ke pemanggil. Transaksi TIDAK PERNAH gagal karena printer -
@@ -52,21 +52,30 @@ window.PrinterManager = (function () {
   function availableAdapters() {
     return [
       { id: 'auto', label: 'Otomatis (disarankan)', available: true },
-      { id: 'serial', label: 'Windows - Bluetooth COM / USB (Serial)', available: window.PrinterSerialAdapter.isAvailable() },
+      { id: 'serial', label: 'Serial - Bluetooth SPP / USB (setelah Hubungkan Printer)', available: window.PrinterSerialAdapter.isAvailable() },
       { id: 'thermal', label: 'Printer Bluetooth BLE (Web Bluetooth)', available: window.PrinterThermalAdapter.isAvailable() },
       { id: 'localBridge', label: 'TOKOQIA Local Print Bridge', available: window.PrinterLocalBridgeAdapter.isAvailable() },
       { id: 'browser', label: 'Cetak via Browser (semua perangkat)', available: true }
     ];
   }
 
-  /** Mode 'auto': pilih metode terbaik yang TERSEDIA saat ini (bukan asumsi statis). */
+  /**
+   * Mode 'auto': pilih metode terbaik yang benar-benar SIAP saat ini, TANPA memunculkan dialog:
+   *   1. Serial (Bluetooth SPP / USB) - hanya kalau sudah ada port yang diizinkan (Pengaturan -> Hubungkan Printer)
+   *   2. Local Bridge - hanya kalau bridge sedang aktif
+   *   3. Cetak via Browser - jalur terakhir
+   * Web Bluetooth (BLE) SENGAJA tidak ikut mode otomatis: RPP02N adalah Bluetooth Classic/SPP,
+   * dan jalur BLE memunculkan dialog pemilih perangkat setiap cetak tanpa pernah cocok.
+   * Tetap bisa dipilih manual di Pengaturan bila suatu saat memakai printer BLE asli.
+   */
   function resolveAdapterId() {
     var pref = getPreferredAdapterName();
     if (pref !== 'auto') return Promise.resolve(pref);
-    if (window.PrinterSerialAdapter.isAvailable()) return Promise.resolve('serial');
-    if (window.PrinterThermalAdapter.isAvailable()) return Promise.resolve('thermal');
-    return window.PrinterLocalBridgeAdapter.checkAvailability().then(function (up) {
-      return up ? 'localBridge' : 'browser';
+    return window.PrinterSerialAdapter.hasGrantedPort().then(function (has) {
+      if (has) return 'serial';
+      return window.PrinterLocalBridgeAdapter.checkAvailability().then(function (up) {
+        return up ? 'localBridge' : 'browser';
+      });
     });
   }
 
@@ -154,7 +163,7 @@ window.PrinterManager = (function () {
 
   /** Status koneksi apa adanya untuk ditampilkan di UI Pengaturan - TIDAK pernah "Connected" palsu. */
   function statusLabel(id) {
-    if (id === 'auto') return 'Sistem memilih metode terbaik otomatis setiap kali cetak';
+    if (id === 'auto') return 'Serial jika printer sudah dihubungkan, lalu Local Bridge jika aktif, lalu Browser';
     if (id === 'browser') return 'Siap (selalu tersedia)';
     var a = adapterFor(id);
     return a.isAvailable() ? 'Tersedia di perangkat ini - status koneksi baru diketahui saat Test Print' : 'Tidak tersedia di browser/perangkat ini';
