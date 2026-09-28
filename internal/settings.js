@@ -115,7 +115,9 @@ Modules.settings = (function () {
     var adapters = window.PrinterManager.availableAdapters();
     var current = window.PrinterManager.getPreferredAdapterName();
     var rs = window.ReceiptBuilder.getReceiptSettings();
-    return window.PrinterManager.detectCapabilities().then(function (cap) {
+    return Promise.all([window.PrinterManager.detectCapabilities(), window.PrinterSerialAdapter.hasGrantedPort()]).then(function (res) {
+      var cap = res[0], serialGranted = res[1];
+      var serialConnected = window.PrinterSerialAdapter.isConnected();
       body.innerHTML =
         '<div class="card">' +
         '<h3>Printer: PUTIAN POS RPP02N</h3>' +
@@ -194,6 +196,14 @@ Modules.settings = (function () {
         '<button class="btn btn-outline btn-sm" id="btn-bridge-scan"' + (!cap.localBridge ? ' disabled' : '') + '>Cari Printer</button>' +
         '<button class="btn btn-outline btn-sm" id="btn-bridge-disconnect"' + (!cap.localBridge ? ' disabled' : '') + '>Putuskan</button>' +
         '</div></div>' +
+        '<div class="card" id="serial-panel"><h3 style="font-size:0.85rem;">Hubungkan Printer (Serial)</h3>' +
+        '<p class="hint" style="margin-top:0;">Pilih printer SEKALI di sini. Setelah itu cetak struk langsung ke printer tanpa dialog lagi. Bluetooth: pair dulu RPP02N di Bluetooth perangkat ini (PIN 0000). USB: sambungkan kabel USB-C.</p>' +
+        '<div class="stat-list"><div class="row"><span>Status</span><span class="badge ' + (serialConnected ? 'green' : (serialGranted ? 'gold' : 'grey')) + '">' + (serialConnected ? 'Terhubung' : (serialGranted ? 'Izin tersimpan (belum terbuka)' : 'Belum dihubungkan')) + '</span></div></div>' +
+        '<div class="field-row" style="margin-top:10px;">' +
+        '<button class="btn btn-primary btn-sm" id="btn-serial-bt"' + (!cap.webSerial ? ' disabled' : '') + '>Hubungkan via Bluetooth</button>' +
+        '<button class="btn btn-outline btn-sm" id="btn-serial-usb"' + (!cap.webSerial ? ' disabled' : '') + '>Hubungkan via USB</button>' +
+        '<button class="btn btn-outline btn-sm" id="btn-serial-off"' + (!cap.webSerial ? ' disabled' : '') + '>Putuskan</button>' +
+        '</div><div id="serial-msg" class="muted" style="margin-top:8px;"></div></div>' +
         '<button class="btn btn-secondary btn-block" id="btn-test-print" style="margin-top:10px;">Test Print</button>' +
         '<div id="test-print-status" class="muted" style="margin-top:8px;"></div>' +
         '<p class="hint" style="margin-top:14px;">RPP02N kemungkinan besar memakai Bluetooth Classic/SPP (bukan BLE) berdasarkan pola pairingnya (PIN manual 0000). Web Bluetooth HANYA bisa untuk printer BLE - jika RPP02N tidak muncul saat memilih "Printer Bluetooth BLE", ini bukan error, memang di luar jangkauan Web Bluetooth. Lihat docs/KNOWN_LIMITATIONS.md bagian Printer untuk detail lengkap.</p>';
@@ -240,6 +250,27 @@ Modules.settings = (function () {
           footerShowCopyright: body.querySelector('#rs-footer-copyright').checked
         });
         Utils.toast('Pengaturan struk disimpan. Coba Test Print untuk melihat hasilnya.', 'success');
+      });
+
+      var serialMsg = body.querySelector('#serial-msg');
+      function pairSerial(kind, btn) {
+        var label = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Menunggu pilihan...';
+        serialMsg.textContent = '';
+        window.PrinterSerialAdapter.pair(kind).then(function () {
+          Utils.toast('Printer terhubung.', 'success');
+          renderTab();
+        }).catch(function (err) {
+          serialMsg.innerHTML = '<span class="badge red">Gagal</span> ' + Utils.escapeHtml(err.message) +
+            (kind === 'bluetooth' ? ' Jika dialog kosong ("Tidak ada perangkat yang kompatibel"), browser ini kemungkinan belum mendukung Bluetooth Serial - gunakan USB atau Cetak via Browser.' : '');
+          btn.disabled = false; btn.textContent = label;
+        });
+      }
+      var btBtn = body.querySelector('#btn-serial-bt'), usbBtn = body.querySelector('#btn-serial-usb'), offBtn = body.querySelector('#btn-serial-off');
+      if (btBtn) btBtn.addEventListener('click', function () { pairSerial('bluetooth', btBtn); });
+      if (usbBtn) usbBtn.addEventListener('click', function () { pairSerial('usb', usbBtn); });
+      if (offBtn) offBtn.addEventListener('click', function () {
+        window.PrinterSerialAdapter.disconnect().then(function () { Utils.toast('Koneksi printer diputuskan.', 'success'); renderTab(); });
       });
 
       var scanBtn = body.querySelector('#btn-bridge-scan');
