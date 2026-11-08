@@ -105,6 +105,6 @@ window.PrinterBrowserAdapter = (function () {
 
   return {
     name: 'browser', isAvailable: isAvailable, print: print, testPrint: testPrint, preview: preview,
-    getPaperWidth: getPaperWidth, setPaperWidth: setPaperWidth, openBlankWindow: openBlankWindow
+    getPaperWidth: getPaperWidth, setPaperWidth: setPaperWidth, openBlankWindow: openBlankWindow, styleFor: styleFor
   };
 })();

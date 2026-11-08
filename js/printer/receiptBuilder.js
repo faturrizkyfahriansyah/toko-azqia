@@ -141,6 +141,7 @@ window.ReceiptBuilder = (function () {
   }
 
   function buildHtml(data) {
+    var settings = getReceiptSettings();
     var itemsHtml = data.items.map(function (it) {
       return '<div class="r-item"><div>' + Utils.escapeHtml(it.name) + '</div>' +
         '<div class="r-row"><span>' + it.qty + ' ' + Utils.escapeHtml(it.unit || '') + ' x ' + Utils.formatCurrency(it.unit_price) + '</span><span class="amt">' + Utils.formatCurrency(it.subtotal) + '</span></div></div>';
@@ -156,14 +157,14 @@ window.ReceiptBuilder = (function () {
         })();
     return (
       '<div class="receipt">' +
-      '<img class="r-logo" src="assets/icons/tokoqia-receipt-icon-black.png" alt="">' +
+      (settings.logoShow ? '<img class="r-logo" src="assets/icons/tokoqia-receipt-icon-black.png" alt="">' : '') +
       '<div class="r-center r-store-name">' + Utils.escapeHtml(data.store_name) + '</div>' +
-      '<div class="r-center">' + Utils.escapeHtml(data.store_tagline) + '</div>' +
-      (data.store_address ? '<div class="r-center r-small">' + Utils.escapeHtml(data.store_address) + '</div>' : '') +
+      (settings.headerShowTagline ? '<div class="r-center">' + Utils.escapeHtml(data.store_tagline) + '</div>' : '') +
+      (settings.headerShowAddress && data.store_address ? '<div class="r-center r-small">' + Utils.escapeHtml(data.store_address) + '</div>' : '') +
       '<div class="r-hr"></div>' +
       '<div class="r-info"><span class="lbl">No.</span><span class="val">: ' + Utils.escapeHtml(data.sale_number) + '</span></div>' +
       '<div class="r-info"><span class="lbl">Tanggal</span><span class="val">: ' + Utils.formatDate(data.date) + '</span></div>' +
-      (data.cashier_name ? '<div class="r-info"><span class="lbl">Kasir</span><span class="val">: ' + Utils.escapeHtml(data.cashier_name) + '</span></div>' : '') +
+      (settings.infoShowCashier && data.cashier_name ? '<div class="r-info"><span class="lbl">Kasir</span><span class="val">: ' + Utils.escapeHtml(data.cashier_name) + '</span></div>' : '') +
       '<div class="r-hr"></div>' +
       itemsHtml +
       '<div class="r-hr"></div>' +
@@ -174,10 +175,9 @@ window.ReceiptBuilder = (function () {
       paymentHtml +
       '<div class="r-hr"></div>' +
       '<div class="r-footer r-center">' +
-      '<div>' + Utils.escapeHtml(data.footer_line1) + '</div>' +
-      '<div>' + Utils.escapeHtml(data.footer_line2) + '</div>' +
-      '<div class="r-bold">' + Utils.escapeHtml(data.store_name) + '</div>' +
-      '<div class="r-small" style="margin-top:6px;">' + Utils.escapeHtml(data.copyright) + '</div>' +
+      (settings.footerShowThanks ? '<div>' + Utils.escapeHtml(data.footer_line1) + '</div><div>' + Utils.escapeHtml(data.footer_line2) + '</div>' : '') +
+      (settings.footerShowStoreName ? '<div class="r-bold">' + Utils.escapeHtml(data.store_name) + '</div>' : '') +
+      (settings.footerShowCopyright ? '<div class="r-small" style="margin-top:6px;">' + Utils.escapeHtml(data.copyright) + '</div>' : '') +
       '</div>' +
       '</div>'
     );
@@ -401,10 +401,28 @@ window.ReceiptBuilder = (function () {
     });
   }
 
+  /** Data contoh (bukan transaksi asli) khusus untuk Pratinjau di Pengaturan -> Printer. */
+  function buildSampleReceiptData() {
+    var now = new Date();
+    return {
+      store_name: 'TOKO AZQIA',
+      store_tagline: 'Melayani Kebutuhan, Membangun Kepercayaan.',
+      store_address: 'Kp. Kecok RT/RW 004/001 Des Jeungjing Kec Cisoka Kab Tangerang Banten 15730',
+      sale_number: 'TRX-CONTOH-0000', date: now.toISOString(), cashier_name: 'Nama Kasir',
+      items: [
+        { name: 'Contoh Produk A', qty: 2, unit: 'pcs', unit_price: 15000, subtotal: 30000 },
+        { name: 'Contoh Produk B dengan Nama Agak Panjang', qty: 1, unit: 'pcs', unit_price: 25000, subtotal: 25000 }
+      ],
+      subtotal: 55000, discount: 5000, total: 50000,
+      payments: [{ method: 'CASH', amount: 50000, change: 0 }],
+      footer_line1: 'TERIMA KASIH', footer_line2: 'TELAH BERBELANJA', copyright: '(c) ' + now.getFullYear() + ' TOKO AZQIA'
+    };
+  }
+
   return {
     buildTextLines: buildTextLines, buildHtml: buildHtml, WIDTH: WIDTH,
     buildEscPosBytes: buildEscPosBytes, buildTestPrintBytes: buildTestPrintBytes,
     canvasToEscPosRaster: canvasToEscPosRaster, ascSafe: ascSafe,
-    getReceiptSettings: getReceiptSettings, setReceiptSettings: setReceiptSettings
+    getReceiptSettings: getReceiptSettings, setReceiptSettings: setReceiptSettings, buildSampleReceiptData: buildSampleReceiptData
   };
 })();

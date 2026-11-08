@@ -118,7 +118,7 @@ window.PrinterSerialAdapter = (function () {
       'Waktu memilih printer habis. Coba klik tombol Hubungkan lagi.'
     ).catch(function (err) {
       if (err && err.name === 'NotFoundError') {
-        throw new Error('Tidak ada printer dipilih. Pastikan printer menyala' + (kind === 'bluetooth' ? ' dan sudah di-pair di Bluetooth perangkat ini (PIN 0000).' : ' dan kabel USB tersambung.'));
+        throw new Error('Tidak ada printer dipilih. Pastikan printer menyala' + (kind === 'bluetooth' ? ' dan sudah di-pair di Bluetooth perangkat ini (PIN 0000).' : (kind === 'usb' ? ' dan kabel USB tersambung.' : ' dan sudah di-pair di Bluetooth perangkat ini (PIN 0000) atau kabel USB tersambung.')));
       }
       throw err;
     });

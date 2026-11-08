@@ -7,9 +7,9 @@ Modules.login = {
     if (Auth.isLoggedIn()) { Router.navigate('#/internal/dashboard'); return; }
     container.innerHTML =
       '<div class="card" style="margin-top:32px;text-align:center;">' +
-      '<img src="assets/icons/tokoqia-primary.png" alt="TOKOQIA" style="width:88px;height:auto;margin:8px auto 12px;display:block;">' +
-      '<h1 style="color:var(--red);margin-bottom:2px;">TOKOQIA</h1>' +
-      '<p class="muted" style="margin-bottom:2px;">TOKO AZQIA</p>' +
+      '<img src="assets/icons/tokoqia-app-icon-192.png" alt="TOKOQIA" style="width:84px;height:84px;border-radius:20px;margin:6px auto 12px;display:block;box-shadow:0 6px 16px rgba(216,19,36,0.28);">' +
+      '<h1 style="margin-bottom:2px;">TOKO AZQIA</h1>' +
+      '<p class="muted" style="margin-bottom:14px;">Melayani Kebutuhan, Membangun Kepercayaan.</p>' +
       '<p style="margin-bottom:16px;">Masuk sebagai Pemilik atau Pengelola</p>' +
       '<form id="login-form" style="text-align:left;">' +
       '<div class="field"><label>Username</label><input name="username" required autocomplete="username"></div>' +
