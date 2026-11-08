@@ -5,7 +5,7 @@
  * (POST ke Apps Script) - transaksi, stok, dan pembayaran WAJIB selalu berupa panggilan
  * jaringan langsung, tidak boleh terlihat "berhasil" saat offline. Lihat docs/KNOWN_LIMITATIONS.md.
  */
-var CACHE_NAME = 'tokoqia-shell-v8';
+var CACHE_NAME = 'tokoqia-shell-v10';
 var SHELL_FILES = [
   './', './index.html', './staff.html', './manifest.json', './offline.html',
   './css/style.css',
@@ -16,12 +16,16 @@ var SHELL_FILES = [
   './internal/orders.js', './internal/cash.js', './internal/expenses.js', './internal/reports.js', './internal/users.js', './internal/settings.js',
   './internal/promos.js', './internal/messages.js', './internal/profile.js',
   './shop/home.js', './shop/catalog.js', './shop/cart.js', './shop/checkout.js', './shop/payment.js', './shop/order.js', './shop/tracking.js',
-  './assets/icons/tokoqia-app-icon.png', './assets/icons/tokoqia-favicon.png',
+  './assets/icons/tokoqia-app-icon.png', './assets/icons/tokoqia-app-icon-192.png', './assets/icons/tokoqia-favicon.png',
   './assets/icons/tokoqia-horizontal.png', './assets/icons/tokoqia-icon.png', './assets/icons/tokoqia-white.png'
 ];
 
 self.addEventListener('install', function (event) {
-  event.waitUntil(caches.open(CACHE_NAME).then(function (cache) { return cache.addAll(SHELL_FILES); }));
+  // Satu per satu + abaikan yang gagal: cache.addAll() membatalkan SELURUH instalasi kalau satu saja file
+  // tidak ditemukan (itulah yang membuat Service Worker lama tidak pernah terpasang).
+  event.waitUntil(caches.open(CACHE_NAME).then(function (cache) {
+    return Promise.all(SHELL_FILES.map(function (f) { return cache.add(f).catch(function () {}); }));
+  }));
   self.skipWaiting();
 });
 
@@ -43,10 +47,23 @@ self.addEventListener('fetch', function (event) {
   var url = new URL(req.url);
   if (url.hostname.indexOf('script.google.com') !== -1 || url.hostname.indexOf('script.googleusercontent.com') !== -1) return;
 
+  // V3: JARINGAN DULU, cache hanya cadangan offline. Dengan begini setiap update di GitHub langsung
+  // terpakai saat aplikasi dibuka (tidak lagi "nyangkut" di versi lama). Cache-first sebelumnya
+  // membuat file baru tidak kelihatan sampai Service Worker diganti manual.
+  var sameOrigin = url.origin === self.location.origin;
   event.respondWith(
-    caches.match(req).then(function (cached) {
-      if (cached) return cached;
-      return fetch(req).catch(function () {
+    new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error('timeout')); }, 5000); // jaringan macet -> pakai cache
+      fetch(req, { cache: 'no-cache' }).then(function (res) { clearTimeout(timer); resolve(res); }, function (e) { clearTimeout(timer); reject(e); });
+    }).then(function (res) {
+      if (sameOrigin && res && res.ok) {
+        var copy = res.clone();
+        caches.open(CACHE_NAME).then(function (c) { c.put(req, copy); });
+      }
+      return res;
+    }).catch(function () {
+      return caches.match(req).then(function (cached) {
+        if (cached) return cached;
         if (req.mode === 'navigate') return caches.match('./offline.html');
         return new Response('', { status: 504 });
       });

@@ -36,6 +36,14 @@ window.Layout = (function () {
     shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6.3C4.5 16.7 7.7 20 12 21c4.3-1 7.5-4.3 7.5-8.7V6Z"/><polyline points="9 12 11 14 15.5 9.5"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.5-9 5.5 5.5 0 0 1 10.7-1.7A4 4 0 0 1 17 18Z"/></svg>',
     userCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.3 18.5c1.1-2.3 3.2-3.5 5.7-3.5s4.6 1.2 5.7 3.5"/></svg>',
+    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.8 19.5h18.4L12 3.5Z"/><line x1="12" y1="10" x2="12" y2="14"/><circle cx="12" cy="17" r="0.7" fill="currentColor"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 5 8 12 15 19"/></svg>',
+    cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5H5l2.2 11h11.2l2-8.2H6"/></svg>',
+    users2: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c1-3.3 3.3-5 6-5s5 1.7 6 5"/><path d="M16 5.3a3 3 0 0 1 0 5.4"/><path d="M18 15c1.6.6 2.8 2.2 3.5 5"/></svg>',
+    bag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>',
+    tagPromo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.6 12 21 3 12V3h9l8.6 8.6a1.9 1.9 0 0 1 0 2.8Z"/><circle cx="8" cy="8" r="1.4"/></svg>',
+    coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2C14.3 8.4 13.3 8 12 8c-1.7 0-2.8.8-2.8 2s1 1.7 2.8 2 2.8.8 2.8 2-1.1 2-2.8 2c-1.4 0-2.5-.5-3-1.4"/><line x1="12" y1="6.5" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="17.5"/></svg>',
     logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>'
   };
 
@@ -112,6 +120,14 @@ window.Layout = (function () {
       (compact ? '' : '<span class="app-name">TOKOQIA</span>') + '</a>';
   }
 
+  /** Header internal: logo (transparan, putih) + teks TOKO AZQIA (diketik, bukan gambar) + slogan di bawahnya. */
+  function brandInternalHtml() {
+    return '<a href="#/internal/dashboard" class="brand brand-internal" aria-label="TOKO AZQIA - Beranda">' +
+      '<img class="brand-logo" src="' + LOGO_WHITE + '" alt="TOKOQIA" onerror="this.style.display=\'none\'">' +
+      '<span class="brand-text"><span class="brand-name">TOKO AZQIA</span>' +
+      '<span class="brand-tagline">Melayani Kebutuhan, Membangun Kepercayaan.</span></span></a>';
+  }
+
   function renderShell(appRoot, area, path) {
     if (area === 'internal' && path === '/internal/login') {
       appRoot.className = '';
@@ -151,7 +167,7 @@ window.Layout = (function () {
       '<div style="flex:1;display:flex;flex-direction:column;min-width:0;">' +
       '<div class="topbar on-brand">' +
       '<button class="icon-btn" id="btn-drawer" aria-label="Menu">' + ICONS.menu + '</button>' +
-      brandHtml(false, true) +
+      brandInternalHtml() +
       '<div class="topbar-spacer"></div>' +
       '<button class="icon-btn" id="btn-bell" aria-label="Notifikasi">' + ICONS.bell + '<span id="bell-badge" class="bell-badge" style="display:none;">0</span></button>' +
       '<a href="#/internal/profile" class="avatar-btn" aria-label="Profil">' + avatarInitial() + '</a>' +
@@ -247,7 +263,7 @@ window.Layout = (function () {
   /** Inisial 1-2 huruf dari nama pengguna login, untuk avatar bulat di header (bukan foto - belum ada fitur upload foto profil). */
   function avatarInitial() {
     var user = Auth.getUser();
-    var name = (user && user.full_name) ? user.full_name.trim() : '';
+    var name = (user && (user.full_name || user.name)) ? String(user.full_name || user.name).trim() : '';
     if (!name) return '?';
     var parts = name.split(/\s+/);
     return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
@@ -259,5 +275,5 @@ window.Layout = (function () {
     if (meta) meta.setAttribute('content', hex);
   }
 
-  return { renderShell: renderShell, highlightActive: highlightActive };
+  return { renderShell: renderShell, highlightActive: highlightActive, ICONS: ICONS };
 })();

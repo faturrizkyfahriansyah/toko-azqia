@@ -13,7 +13,11 @@ Modules.settings = (function () {
       tabBtn('toko', 'Profil Toko') + tabBtn('ongkir', 'Ongkir') + tabBtn('pembayaran', 'Pembayaran') + tabBtn('printer', 'Printer') +
       tabBtn('audit', 'Audit Log') + tabBtn('backup', 'Backup') + '</div><div id="tab-body"></div>';
     Utils.qsa('[data-tab]', container).forEach(function (b) { b.addEventListener('click', function () { activeTab = b.getAttribute('data-tab'); render(container); }); });
-    return renderTab();
+    // Kalau satu tab gagal dimuat (mis. server lambat), tab lain tetap bisa dibuka - jangan sampai seluruh halaman diganti pesan error.
+    return Promise.resolve(renderTab()).catch(function (err) {
+      var tb = document.getElementById('tab-body');
+      if (tb) tb.innerHTML = '<div class="empty-state"><div class="empty-title">Gagal memuat</div><div class="empty-sub">' + Utils.escapeHtml((err && err.message) || 'Coba lagi.') + '</div></div>';
+    });
   }
   function tabBtn(id, label) { return '<button data-tab="' + id + '" class="' + (activeTab === id ? 'active' : '') + '">' + label + '</button>'; }
 
@@ -110,137 +114,160 @@ Modules.settings = (function () {
     });
   }
 
+  /**
+   * Pengaturan -> Printer (V3, DISEDERHANAKAN).
+   * Yang tampil di layar utama cuma: status + [Hubungkan Printer] + [Test Print].
+   * Sistem memilih sendiri jalur terbaik di belakang layar (Serial -> Bridge -> Browser).
+   * Semua pilihan teknis ada di bagian lipat "Pengaturan Lanjutan" - tidak mengganggu.
+   */
   function renderPrinter(body) {
     body.innerHTML = '<div class="spinner"></div>';
     var adapters = window.PrinterManager.availableAdapters();
     var current = window.PrinterManager.getPreferredAdapterName();
     var rs = window.ReceiptBuilder.getReceiptSettings();
-    return Promise.all([window.PrinterManager.detectCapabilities(), window.PrinterSerialAdapter.hasGrantedPort()]).then(function (res) {
-      var cap = res[0], serialGranted = res[1];
+    return Promise.all([
+      window.PrinterManager.detectCapabilities(),
+      window.PrinterSerialAdapter.hasGrantedPort(),
+      window.PrinterLocalBridgeAdapter.checkAvailability()
+    ]).then(function (res) {
+      var cap = res[0], serialGranted = res[1], bridgeUp = res[2];
       var serialConnected = window.PrinterSerialAdapter.isConnected();
+
+      var st;
+      if (current !== 'auto') {
+        st = { cls: 'warn', title: 'Metode dipilih manual', sub: 'Sedang memakai metode manual dari Pengaturan Lanjutan. Pilih "Otomatis" di sana untuk kembali ke mode sederhana.' };
+      } else if (serialConnected) {
+        st = { cls: 'ok', title: 'Printer terhubung', sub: 'Struk langsung tercetak ke printer, tanpa dialog.' };
+      } else if (serialGranted) {
+        st = { cls: 'ok', title: 'Printer siap', sub: 'Tersambung otomatis saat mencetak. Pastikan printer menyala.' };
+      } else if (bridgeUp) {
+        st = { cls: 'ok', title: 'Printer terhubung (Bridge)', sub: 'Struk dicetak lewat TOKOQIA Local Print Bridge.' };
+      } else {
+        st = { cls: 'warn', title: 'Belum terhubung ke printer', sub: cap.webSerial
+          ? 'Saat ini struk dicetak lewat dialog cetak browser. Klik "Hubungkan Printer" supaya struk langsung tercetak.'
+          : 'Browser/perangkat ini tidak bisa tersambung langsung ke printer. Struk dicetak lewat dialog cetak browser - tetap berfungsi.' };
+      }
+
       body.innerHTML =
         '<div class="card">' +
-        '<h3>Printer: PUTIAN POS RPP02N</h3>' +
-        '<div class="stat-list">' +
-        '<div class="row"><span>Kertas</span><span>58mm</span></div>' +
-        '<div class="row"><span>Lebar Cetak</span><span>48mm / 384 dot</span></div>' +
-        '<div class="row"><span>Codepage</span><span>PC850</span></div>' +
-        '<div class="row"><span>Protokol</span><span>ESC/POS compatible</span></div>' +
-        '</div></div>' +
-        '<div class="card"><h3 style="font-size:0.85rem;">Metode Koneksi Terdeteksi</h3><div class="stat-list">' +
-        capRow('Web Bluetooth', cap.webBluetooth) +
-        capRow('WebUSB', cap.webUSB) +
-        capRow('Web Serial', cap.webSerial) +
-        capRow('Local Bridge (node bridge.js)', cap.localBridge) +
-        capRow('Cetak via Browser', cap.browserPrint) +
-        '</div></div>' +
-        '<p>Pilih metode koneksi untuk perangkat kasir ini ("Otomatis" disarankan - TOKOQIA akan memilih metode terbaik yang tersedia setiap kali cetak, bukan langsung ke dialog print sistem):</p>' +
-        adapters.map(function (a) {
-          return '<div class="card row"><div><strong>' + a.label + '</strong><div class="muted">' + window.PrinterManager.statusLabel(a.id) + '</div></div>' +
-            '<button class="btn ' + (current === a.id ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-select="' + a.id + '"' + (!a.available ? ' disabled' : '') + '>' + (current === a.id ? 'Terpilih' : 'Pilih') + '</button></div>';
-        }).join('') +
-        '<div class="card"><h3 style="font-size:0.85rem;">Lebar Kertas (Cetak via Browser)</h3>' +
-        '<p class="hint" style="margin-top:0;">Khusus jalur "Cetak via Browser" - sesuaikan dengan kertas printer yang benar-benar terpasang di komputer ini (bisa berbeda dari printer referensi 58mm di atas, kalau Anda mencetak lewat printer thermal lain yang terdaftar di sistem).</p>' +
+        '<div class="status-line"><span class="status-dot ' + st.cls + '"></span><span class="status-title">' + st.title + '</span></div>' +
+        '<p class="hint" style="margin:0 0 12px;">' + st.sub + '</p>' +
         '<div class="field-row">' +
-        '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '58' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="58">58mm</button>' +
-        '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '80' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="80">80mm</button>' +
-        '</div></div>' +
-        '<div class="card" id="receipt-settings-panel"><h3 style="font-size:0.85rem;">Pengaturan Struk — Umum</h3>' +
-        '<p class="hint" style="margin-top:0;">Kalau baris teks menempel tanpa jeda di kertas asli, coba ganti "Akhir Baris".</p>' +
-        receiptSettingRow('Akhir Baris', [
-          { value: 'CRLF', label: 'CRLF (disarankan)' },
-          { value: 'LF', label: 'LF saja' }
-        ], rs.lineEnding, 'lineEnding') +
-        '<div class="field" style="margin-bottom:8px;"><label>Lebar Karakter - Font Normal</label><input type="number" id="rs-charwidth" value="' + rs.charWidth + '" min="16" max="64" style="max-width:120px;"></div>' +
-        '<div class="field" style="margin-bottom:8px;"><label>Lebar Karakter - Font Kecil</label><input type="number" id="rs-condensedwidth" value="' + rs.condensedWidth + '" min="16" max="80" style="max-width:120px;"></div>' +
-        '<div class="field" style="margin-bottom:0;"><label>Baris Feed di Akhir Struk</label><input type="number" id="rs-feedlines" value="' + rs.feedLines + '" min="0" max="10" style="max-width:120px;"></div>' +
+        '<button class="btn btn-primary btn-block" id="btn-connect"' + (!cap.webSerial ? ' disabled' : '') + '>Hubungkan Printer</button>' +
+        '<button class="btn btn-secondary btn-block" id="btn-test-print">Test Print</button>' +
         '</div>' +
+        '<div id="serial-msg" class="muted" style="margin-top:8px;"></div>' +
+        '<div id="test-print-status" class="muted" style="margin-top:6px;"></div>' +
+        ((serialConnected || serialGranted) ? '<button class="btn btn-ghost btn-sm" id="btn-serial-off" style="margin-top:6px;">Putuskan printer</button>' : '') +
+        '</div>' +
+        '<p class="hint" style="margin:0 0 12px;">Printer: PUTIAN POS RPP02N, kertas 58mm. Bluetooth: pair dulu di pengaturan Bluetooth perangkat (PIN 0000), lalu klik Hubungkan Printer dan pilih RPP02N.</p>' +
+
+        '<details class="collapsible"><summary>Tampilan Struk (logo, header, footer)</summary><div class="collapsible-body">' +
+        '<div class="card"><h3 style="font-size:0.85rem;">Pratinjau</h3>' +
+        '<p class="hint" style="margin-top:0;">Gambaran struk dengan pengaturan di bawah (data contoh, bukan transaksi asli).</p>' +
+        '<div style="display:flex;justify-content:center;background:#ddd;padding:14px;border-radius:8px;">' +
+        '<iframe id="receipt-preview-frame" title="Pratinjau struk" style="border:none;width:240px;height:440px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);"></iframe></div></div>' +
 
         '<div class="card"><h3 style="font-size:0.85rem;">1. Logo</h3>' +
         checkboxRow('rs-logo-show', 'Tampilkan logo di struk', rs.logoShow) +
-        receiptSettingRow('Ukuran Logo', [
-          { value: 'small', label: 'Kecil' }, { value: 'medium', label: 'Sedang' }, { value: 'large', label: 'Besar' }
-        ], rs.logoSize, 'logoSize') +
+        receiptSettingRow('Ukuran Logo', [{ value: 'small', label: 'Kecil' }, { value: 'medium', label: 'Sedang' }, { value: 'large', label: 'Besar' }], rs.logoSize, 'logoSize') +
         '</div>' +
 
         '<div class="card"><h3 style="font-size:0.85rem;">2. Header (Nama Toko, Tagline, Alamat)</h3>' +
         checkboxRow('rs-header-tagline', 'Tampilkan tagline', rs.headerShowTagline) +
         checkboxRow('rs-header-address', 'Tampilkan alamat toko', rs.headerShowAddress) +
-        receiptSettingRow('Ukuran Font', [
-          { value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }
-        ], rs.headerFontSize, 'headerFontSize') +
+        receiptSettingRow('Ukuran Font', [{ value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }], rs.headerFontSize, 'headerFontSize') +
         '</div>' +
 
         '<div class="card"><h3 style="font-size:0.85rem;">3. Info Transaksi (No. / Tanggal / Kasir)</h3>' +
-        '<p class="hint" style="margin-top:0;">Nomor transaksi & tanggal selalu tampil (data penting, tidak bisa disembunyikan).</p>' +
+        '<p class="hint" style="margin-top:0;">Nomor transaksi & tanggal selalu tampil.</p>' +
         checkboxRow('rs-info-cashier', 'Tampilkan nama kasir', rs.infoShowCashier) +
-        receiptSettingRow('Ukuran Font', [
-          { value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }
-        ], rs.infoFontSize, 'infoFontSize') +
+        receiptSettingRow('Ukuran Font', [{ value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }], rs.infoFontSize, 'infoFontSize') +
         '</div>' +
 
         '<div class="card"><h3 style="font-size:0.85rem;">4. Footer</h3>' +
         checkboxRow('rs-footer-thanks', 'Tampilkan ucapan terima kasih', rs.footerShowThanks) +
         checkboxRow('rs-footer-storename', 'Tampilkan nama toko di footer', rs.footerShowStoreName) +
         checkboxRow('rs-footer-copyright', 'Tampilkan baris hak cipta', rs.footerShowCopyright) +
-        receiptSettingRow('Ukuran Font', [
-          { value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }
-        ], rs.footerFontSize, 'footerFontSize') +
+        receiptSettingRow('Ukuran Font', [{ value: 'normal', label: 'Normal' }, { value: 'condensed', label: 'Kecil' }], rs.footerFontSize, 'footerFontSize') +
         '</div>' +
+        '<button class="btn btn-primary btn-block" id="btn-save-receipt-settings">Simpan Pengaturan Struk</button>' +
+        '</div></details>' +
 
-        '<button class="btn btn-primary btn-block" id="btn-save-receipt-settings" style="margin-bottom:10px;">Simpan Semua Pengaturan Struk</button>' +
-        '<div class="card" id="bridge-panel"><h3 style="font-size:0.85rem;">TOKOQIA Local Print Bridge</h3>' +
-        '<p class="hint">Untuk printer Bluetooth Classic/SPP seperti RPP02N yang tidak terjangkau Web Bluetooth. Jalankan <code>node bridge.js</code> dulu di komputer ini - lihat <code>bridge/node-bridge/README.md</code>.</p>' +
-        '<div id="bridge-port-list" class="muted">' + (cap.localBridge ? 'Klik "Cari Printer" untuk memuat daftar port.' : 'Bridge belum aktif - jalankan node bridge.js terlebih dahulu.') + '</div>' +
+        '<details class="collapsible"><summary>Pengaturan Lanjutan (teknis)</summary><div class="collapsible-body">' +
+        '<p class="hint" style="margin-top:0;">Hanya perlu dibuka kalau ada masalah sambungan. Biarkan "Otomatis" untuk pemakaian normal.</p>' +
+        adapters.map(function (a) {
+          return '<div class="card row"><div><strong>' + a.label + '</strong><div class="muted">' + window.PrinterManager.statusLabel(a.id) + '</div></div>' +
+            '<button class="btn ' + (current === a.id ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-select="' + a.id + '"' + (!a.available ? ' disabled' : '') + '>' + (current === a.id ? 'Terpilih' : 'Pilih') + '</button></div>';
+        }).join('') +
+        '<div class="card"><h3 style="font-size:0.85rem;">Format Teks ke Printer</h3>' +
+        '<p class="hint" style="margin-top:0;">Kalau baris teks menempel tanpa jeda di kertas asli, coba ganti "Akhir Baris".</p>' +
+        receiptSettingRow('Akhir Baris', [{ value: 'CRLF', label: 'CRLF (disarankan)' }, { value: 'LF', label: 'LF saja' }], rs.lineEnding, 'lineEnding') +
+        '<div class="field" style="margin-bottom:8px;"><label>Lebar Karakter - Font Normal</label><input type="number" id="rs-charwidth" value="' + rs.charWidth + '" min="16" max="64" style="max-width:120px;"></div>' +
+        '<div class="field" style="margin-bottom:8px;"><label>Lebar Karakter - Font Kecil</label><input type="number" id="rs-condensedwidth" value="' + rs.condensedWidth + '" min="16" max="80" style="max-width:120px;"></div>' +
+        '<div class="field" style="margin-bottom:0;"><label>Baris Feed di Akhir Struk</label><input type="number" id="rs-feedlines" value="' + rs.feedLines + '" min="0" max="10" style="max-width:120px;"></div>' +
+        '<button class="btn btn-outline btn-sm" id="btn-save-format" style="margin-top:10px;">Simpan Format</button></div>' +
+        '<div class="card"><h3 style="font-size:0.85rem;">Lebar Kertas (Cetak via Browser)</h3>' +
+        '<div class="field-row">' +
+        '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '58' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="58">58mm</button>' +
+        '<button class="btn ' + (window.PrinterBrowserAdapter.getPaperWidth() === '80' ? 'btn-primary' : 'btn-outline') + ' btn-sm" data-paper="80">80mm</button>' +
+        '</div></div>' +
+        '<div class="card"><h3 style="font-size:0.85rem;">Kemampuan Perangkat Ini</h3><div class="stat-list">' +
+        capRow('Web Bluetooth (BLE)', cap.webBluetooth) + capRow('Web Serial (Bluetooth SPP / USB)', cap.webSerial) +
+        capRow('Local Bridge (node bridge.js)', cap.localBridge) + capRow('Cetak via Browser', cap.browserPrint) +
+        '</div></div>' +
+        '<div class="card" id="bridge-panel"><h3 style="font-size:0.85rem;">TOKOQIA Local Print Bridge (komputer)</h3>' +
+        '<p class="hint">Alternatif untuk komputer: jalankan <code>node bridge.js</code> dulu. Tidak dipakai di HP.</p>' +
+        '<div id="bridge-port-list" class="muted">' + (cap.localBridge ? 'Klik "Cari Printer" untuk memuat daftar port.' : 'Bridge belum aktif.') + '</div>' +
         '<div class="field-row" style="margin-top:10px;">' +
         '<button class="btn btn-outline btn-sm" id="btn-bridge-scan"' + (!cap.localBridge ? ' disabled' : '') + '>Cari Printer</button>' +
         '<button class="btn btn-outline btn-sm" id="btn-bridge-disconnect"' + (!cap.localBridge ? ' disabled' : '') + '>Putuskan</button>' +
         '</div></div>' +
-        '<div class="card" id="serial-panel"><h3 style="font-size:0.85rem;">Hubungkan Printer (Serial)</h3>' +
-        '<p class="hint" style="margin-top:0;">Pilih printer SEKALI di sini. Setelah itu cetak struk langsung ke printer tanpa dialog lagi. Bluetooth: pair dulu RPP02N di Bluetooth perangkat ini (PIN 0000). USB: sambungkan kabel USB-C.</p>' +
-        '<div class="stat-list"><div class="row"><span>Status</span><span class="badge ' + (serialConnected ? 'green' : (serialGranted ? 'gold' : 'grey')) + '">' + (serialConnected ? 'Terhubung' : (serialGranted ? 'Izin tersimpan (belum terbuka)' : 'Belum dihubungkan')) + '</span></div></div>' +
-        '<div class="field-row" style="margin-top:10px;">' +
-        '<button class="btn btn-primary btn-sm" id="btn-serial-bt"' + (!cap.webSerial ? ' disabled' : '') + '>Hubungkan via Bluetooth</button>' +
-        '<button class="btn btn-outline btn-sm" id="btn-serial-usb"' + (!cap.webSerial ? ' disabled' : '') + '>Hubungkan via USB</button>' +
-        '<button class="btn btn-outline btn-sm" id="btn-serial-off"' + (!cap.webSerial ? ' disabled' : '') + '>Putuskan</button>' +
-        '</div><div id="serial-msg" class="muted" style="margin-top:8px;"></div></div>' +
-        '<button class="btn btn-secondary btn-block" id="btn-test-print" style="margin-top:10px;">Test Print</button>' +
-        '<div id="test-print-status" class="muted" style="margin-top:8px;"></div>' +
-        '<p class="hint" style="margin-top:14px;">RPP02N kemungkinan besar memakai Bluetooth Classic/SPP (bukan BLE) berdasarkan pola pairingnya (PIN manual 0000). Web Bluetooth HANYA bisa untuk printer BLE - jika RPP02N tidak muncul saat memilih "Printer Bluetooth BLE", ini bukan error, memang di luar jangkauan Web Bluetooth. Lihat docs/KNOWN_LIMITATIONS.md bagian Printer untuk detail lengkap.</p>';
+        '</div></details>';
 
       function capRow(label, ok) {
         return '<div class="row"><span>' + label + '</span><span class="badge ' + (ok ? 'green' : 'grey') + '">' + (ok ? '\u2713 Tersedia' : '\u2715 Tidak tersedia') + '</span></div>';
       }
-      function receiptSettingRow(label, options, current, name) {
+      function receiptSettingRow(label, options, cur, name) {
         return '<div class="field" style="margin-bottom:8px;"><label>' + label + '</label><div class="field-row">' +
           options.map(function (o) {
-            return '<button class="btn btn-sm ' + (current === o.value ? 'btn-primary' : 'btn-outline') + '" data-rs="' + name + '" data-rs-value="' + o.value + '">' + o.label + '</button>';
+            return '<button class="btn btn-sm ' + (cur === o.value ? 'btn-primary' : 'btn-outline') + '" data-rs="' + name + '" data-rs-value="' + o.value + '">' + o.label + '</button>';
           }).join('') + '</div></div>';
       }
       function checkboxRow(id, label, checked) {
         return '<label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;margin-bottom:8px;"><input type="checkbox" id="' + id + '"' + (checked ? ' checked' : '') + '> ' + label + '</label>';
       }
+      function keepOpen(sel) { /* setelah render ulang, buka lagi bagian lipat yang tadi sedang dipakai */
+        var d = body.querySelectorAll('details.collapsible')[sel]; if (d) d.open = true;
+      }
+      function renderReceiptPreview() {
+        var frame = body.querySelector('#receipt-preview-frame');
+        if (!frame) return;
+        var mm = window.PrinterBrowserAdapter.getPaperWidth();
+        frame.srcdoc = '<html><head><meta charset="utf-8">' + window.PrinterBrowserAdapter.styleFor(mm) + '</head><body>' +
+          window.ReceiptBuilder.buildHtml(window.ReceiptBuilder.buildSampleReceiptData()) + '</body></html>';
+      }
+      renderReceiptPreview();
+      if (window.__printerOpenSection !== undefined) { keepOpen(window.__printerOpenSection); window.__printerOpenSection = undefined; }
 
       Utils.qsa('[data-select]', body).forEach(function (b) {
-        b.addEventListener('click', function () { window.PrinterManager.setPreferredAdapterName(b.getAttribute('data-select')); renderTab(); });
+        b.addEventListener('click', function () { window.__printerOpenSection = 1; window.PrinterManager.setPreferredAdapterName(b.getAttribute('data-select')); renderTab(); });
       });
       Utils.qsa('[data-paper]', body).forEach(function (b) {
-        b.addEventListener('click', function () { window.PrinterBrowserAdapter.setPaperWidth(b.getAttribute('data-paper')); renderTab(); });
+        b.addEventListener('click', function () { window.__printerOpenSection = 1; window.PrinterBrowserAdapter.setPaperWidth(b.getAttribute('data-paper')); renderTab(); });
       });
-
       Utils.qsa('[data-rs]', body).forEach(function (b) {
         b.addEventListener('click', function () {
           var patch = {}; patch[b.getAttribute('data-rs')] = b.getAttribute('data-rs-value');
           window.ReceiptBuilder.setReceiptSettings(patch);
+          // pilihan tampilan struk -> bagian 0 ; format teks printer -> bagian 1
+          window.__printerOpenSection = (b.getAttribute('data-rs') === 'lineEnding') ? 1 : 0;
           renderTab();
         });
       });
       var saveRsBtn = body.querySelector('#btn-save-receipt-settings');
       if (saveRsBtn) saveRsBtn.addEventListener('click', function () {
         window.ReceiptBuilder.setReceiptSettings({
-          charWidth: Math.max(16, Math.min(64, Number(body.querySelector('#rs-charwidth').value) || 32)),
-          condensedWidth: Math.max(16, Math.min(80, Number(body.querySelector('#rs-condensedwidth').value) || 42)),
-          feedLines: Math.max(0, Math.min(10, Number(body.querySelector('#rs-feedlines').value) || 4)),
           logoShow: body.querySelector('#rs-logo-show').checked,
           headerShowTagline: body.querySelector('#rs-header-tagline').checked,
           headerShowAddress: body.querySelector('#rs-header-address').checked,
@@ -249,26 +276,35 @@ Modules.settings = (function () {
           footerShowStoreName: body.querySelector('#rs-footer-storename').checked,
           footerShowCopyright: body.querySelector('#rs-footer-copyright').checked
         });
+        renderReceiptPreview();
         Utils.toast('Pengaturan struk disimpan. Coba Test Print untuk melihat hasilnya.', 'success');
       });
+      var saveFmtBtn = body.querySelector('#btn-save-format');
+      if (saveFmtBtn) saveFmtBtn.addEventListener('click', function () {
+        window.ReceiptBuilder.setReceiptSettings({
+          charWidth: Math.max(16, Math.min(64, Number(body.querySelector('#rs-charwidth').value) || 32)),
+          condensedWidth: Math.max(16, Math.min(80, Number(body.querySelector('#rs-condensedwidth').value) || 42)),
+          feedLines: Math.max(0, Math.min(10, Number(body.querySelector('#rs-feedlines').value) || 4))
+        });
+        Utils.toast('Format disimpan.', 'success');
+      });
 
+      // ---- Hubungkan Printer: SATU tombol. Dialog pemilih port hanya muncul dari sini (butuh klik langsung). ----
       var serialMsg = body.querySelector('#serial-msg');
-      function pairSerial(kind, btn) {
-        var label = btn.textContent;
-        btn.disabled = true; btn.textContent = 'Menunggu pilihan...';
+      var connectBtn = body.querySelector('#btn-connect');
+      if (connectBtn) connectBtn.addEventListener('click', function () {
+        connectBtn.disabled = true; connectBtn.textContent = 'Menunggu pilihan...';
         serialMsg.textContent = '';
-        window.PrinterSerialAdapter.pair(kind).then(function () {
+        window.PrinterSerialAdapter.pair('any').then(function () {
           Utils.toast('Printer terhubung.', 'success');
           renderTab();
         }).catch(function (err) {
           serialMsg.innerHTML = '<span class="badge red">Gagal</span> ' + Utils.escapeHtml(err.message) +
-            (kind === 'bluetooth' ? ' Jika dialog kosong ("Tidak ada perangkat yang kompatibel"), browser ini kemungkinan belum mendukung Bluetooth Serial - gunakan USB atau Cetak via Browser.' : '');
-          btn.disabled = false; btn.textContent = label;
+            ' Jika daftar kosong ("Tidak ada perangkat yang kompatibel"), perangkat/browser ini belum bisa tersambung langsung ke RPP02N - struk tetap bisa dicetak lewat dialog cetak browser.';
+          connectBtn.disabled = false; connectBtn.textContent = 'Hubungkan Printer';
         });
-      }
-      var btBtn = body.querySelector('#btn-serial-bt'), usbBtn = body.querySelector('#btn-serial-usb'), offBtn = body.querySelector('#btn-serial-off');
-      if (btBtn) btBtn.addEventListener('click', function () { pairSerial('bluetooth', btBtn); });
-      if (usbBtn) usbBtn.addEventListener('click', function () { pairSerial('usb', usbBtn); });
+      });
+      var offBtn = body.querySelector('#btn-serial-off');
       if (offBtn) offBtn.addEventListener('click', function () {
         window.PrinterSerialAdapter.disconnect().then(function () { Utils.toast('Koneksi printer diputuskan.', 'success'); renderTab(); });
       });
@@ -304,10 +340,10 @@ Modules.settings = (function () {
       var testBtn = body.querySelector('#btn-test-print');
       var statusEl = body.querySelector('#test-print-status');
       testBtn.addEventListener('click', function () {
-        testBtn.disabled = true; testBtn.innerHTML = '<span class="spinner-inline"></span> Mencetak Test Print...';
+        testBtn.disabled = true; testBtn.innerHTML = '<span class="spinner-inline"></span> Mencetak...';
         statusEl.textContent = '';
         window.PrinterManager.testPrint().then(function () {
-          statusEl.innerHTML = '<span class="badge green">Berhasil</span> Perintah cetak terkirim. Periksa hasil fisik di printer.';
+          statusEl.innerHTML = '<span class="badge green">Berhasil</span> Perintah cetak terkirim. Periksa hasilnya di printer.';
         }).catch(function (err) {
           statusEl.innerHTML = '<span class="badge red">Gagal</span> ' + Utils.escapeHtml(err.message);
         }).finally(function () {
