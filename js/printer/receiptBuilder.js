@@ -107,6 +107,7 @@ window.ReceiptBuilder = (function () {
     return { CASH: 'Tunai', QRIS: 'QRIS', TRANSFER: 'Transfer', HUTANG: 'Hutang' }[method] || method;
   }
 
+  /** Teks polos (jalur cetak teks adapter tanpa Font B): lebar tunggal, perilaku LAMA dipertahankan. */
   function buildTextLines(data) {
     WIDTH = getReceiptSettings().charWidth || 32;
     var L = [];
@@ -138,6 +139,45 @@ window.ReceiptBuilder = (function () {
     L.push('');
     L.push(padCenter(data.copyright));
     return L;
+  }
+
+  /** Pratinjau (K-15): mencerminkan persis susunan & lebar byte ESC/POS (K-15) - tanpa kode kontrol & tanpa feed akhir. */
+  function buildPreviewLines(data) {
+    var s = getReceiptSettings(), normalW = s.charWidth || 32, condW = s.condensedWidth || 42;
+    function w(key) { return key === 'condensed' ? condW : normalW; }
+    var L = [];
+    WIDTH = normalW; L.push(padCenter(data.store_name));
+    WIDTH = w(s.headerFontSize);
+    if (s.headerShowTagline) wrap(data.store_tagline, WIDTH).forEach(function (l) { L.push(padCenter(l)); });
+    if (s.headerShowAddress && data.store_address) wrap(data.store_address, WIDTH).forEach(function (l) { L.push(padCenter(l)); });
+    WIDTH = normalW; L.push(line('-'));
+    WIDTH = w(s.infoFontSize);
+    L.push('No. ' + data.sale_number);
+    L.push(Utils.formatDate(data.date));
+    if (s.infoShowCashier && data.cashier_name) L.push('Kasir: ' + data.cashier_name);
+    WIDTH = normalW; L.push(line('-'));
+    data.items.forEach(function (it) {
+      wrap(it.name, WIDTH).forEach(function (l) { L.push(l); });
+      L.push(twoCol(it.qty + ' ' + (it.unit || '') + ' x ' + rupiah(it.unit_price), rupiah(it.subtotal)));
+    });
+    L.push(line('-'));
+    L.push(twoCol('Subtotal', rupiah(data.subtotal)));
+    if (data.discount) L.push(twoCol('Diskon', '-' + rupiah(data.discount)));
+    L.push(line('-'));
+    L.push(twoCol('TOTAL', rupiah(data.total)));
+    L.push(line('-'));
+    paymentLines(data).forEach(function (l) { L.push(l); });
+    L.push(line('-'));
+    L.push('');
+    WIDTH = w(s.footerFontSize);
+    if (s.footerShowThanks) { L.push(padCenter(data.footer_line1)); L.push(padCenter(data.footer_line2)); }
+    WIDTH = normalW;
+    if (s.footerShowStoreName) L.push(padCenter(data.store_name));
+    L.push('');
+    WIDTH = w(s.footerFontSize);
+    if (s.footerShowCopyright) L.push(padCenter(data.copyright));
+    WIDTH = normalW;
+    return L.map(ascSafe);
   }
 
   function buildHtml(data) {
@@ -206,7 +246,9 @@ window.ReceiptBuilder = (function () {
   function ascSafe(str) {
     if (str === null || str === undefined) return '';
     var map = { '\u00A9': '(c)', '\u2713': 'OK', '\u2192': '->', '\u2013': '-', '\u2014': '-', '\u2018': "'", '\u2019': "'", '\u201C': '"', '\u201D': '"' };
-    str = String(str).replace(/[\u00A9\u2713\u2192\u2013\u2014\u2018\u2019\u201C\u201D]/g, function (c) { return map[c] || ''; });
+    str = String(str);
+    if (str.normalize) str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // K-14: huruf beraksen -> huruf biasa (mis. Cafe), bukan dibuang
+    str = str.replace(/[\u00A9\u2713\u2192\u2013\u2014\u2018\u2019\u201C\u201D]/g, function (c) { return map[c] || ''; });
     // PENTING: \n dan \r HARUS tetap dipertahankan (jangan ikut kena buang) - bug sebelumnya
     // di sini menghapus SEMUA karakter di bawah 0x20 termasuk \n, menyebabkan seluruh baris
     // struk menempel jadi satu string panjang tanpa jeda baris sama sekali saat dicetak fisik.
@@ -420,7 +462,7 @@ window.ReceiptBuilder = (function () {
   }
 
   return {
-    buildTextLines: buildTextLines, buildHtml: buildHtml, WIDTH: WIDTH,
+    buildTextLines: buildTextLines, buildPreviewLines: buildPreviewLines, buildHtml: buildHtml, WIDTH: WIDTH,
     buildEscPosBytes: buildEscPosBytes, buildTestPrintBytes: buildTestPrintBytes,
     canvasToEscPosRaster: canvasToEscPosRaster, ascSafe: ascSafe,
     getReceiptSettings: getReceiptSettings, setReceiptSettings: setReceiptSettings, buildSampleReceiptData: buildSampleReceiptData

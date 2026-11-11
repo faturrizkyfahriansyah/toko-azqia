@@ -14,10 +14,14 @@ Modules.payment = (function () {
 
     if (order.payment && order.payment.qris_image_url) {
       html += '<div class="card" style="text-align:center;"><img src="' + order.payment.qris_image_url + '" alt="QRIS" style="max-width:260px;width:100%;"><p class="muted">' + Utils.escapeHtml(order.payment.instructions || '') + '</p></div>';
+    } else if (order.payment_method === 'TUNAI') {
+      html += '<div class="card"><p>Silakan bayar <strong>tunai saat mengambil pesanan</strong> di toko. Pesanan akan disiapkan oleh staf.</p></div>';
+    } else if (order.payment_method === 'COD') {
+      html += '<div class="card"><p>Silakan bayar <strong>tunai saat pesanan tiba</strong> (COD).</p></div>';
     } else {
       html += '<div class="card"><p>Selesaikan pembayaran sesuai metode yang dipilih. Pesanan Anda akan diproses staf toko setelah pembayaran diverifikasi.</p></div>';
     }
-    html += '<a href="#/shop/order" class="btn btn-primary btn-block">Saya Sudah Membayar</a>' +
+    html += (order.payment_method === 'TUNAI' || order.payment_method === 'COD' ? '' : '<a href="#/shop/order" class="btn btn-primary btn-block">Saya Sudah Membayar</a>') +
       '<a href="#/shop/tracking" class="btn btn-outline btn-block" style="margin-top:8px;">Lacak Pesanan Ini</a>';
     container.innerHTML = html;
     return Promise.resolve();

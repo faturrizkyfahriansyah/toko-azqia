@@ -85,6 +85,9 @@ window.Layout = (function () {
         { path: '#/internal/suppliers', label: 'Supplier', ic: ICONS.truck },
         { path: '#/internal/payables', label: 'Hutang Supplier', ic: ICONS.invoice }
       ] },
+      { label: 'WHATSAPP', items: [
+        { path: '#/internal/whatsapp', label: 'WhatsApp Center', ic: ICONS.chat }
+      ] },
       { label: 'KEUANGAN', items: [
         { path: '#/internal/cash', label: 'Kas', ic: ICONS.wallet },
         { path: '#/internal/expenses', label: 'Pengeluaran', ic: ICONS.receipt },

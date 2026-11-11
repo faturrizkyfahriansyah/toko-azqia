@@ -380,7 +380,7 @@ Modules.pos = (function () {
     Api.call('pos.reprintReceipt', { sale_id: saleId }).then(function (data) {
       var m = Utils.openModal(
         '<h3>Transaksi Berhasil</h3>' +
-        '<div class="receipt-preview">' + Utils.escapeHtml(window.ReceiptBuilder.buildTextLines(data).join('\n')) + '</div>' +
+        '<div class="receipt-preview">' + Utils.escapeHtml((window.ReceiptBuilder.buildPreviewLines || window.ReceiptBuilder.buildTextLines)(data).join('\n')) + '</div>' +
         '<div class="field-row" style="margin-top:14px;">' +
         '<button class="btn btn-outline btn-block" id="btn-preview">Pratinjau</button>' +
         '<button class="btn btn-secondary btn-block" id="btn-print">Cetak Struk</button>' +

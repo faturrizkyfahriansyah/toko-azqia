@@ -56,6 +56,7 @@
 <script defer src="internal/settings.js"></script>
 <script defer src="internal/promos.js"></script>
 <script defer src="internal/messages.js"></script>
+<script defer src="internal/wa.js"></script>
 <script defer src="internal/profile.js"></script>
 
 <script defer src="shop/home.js"></script>
@@ -95,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function () {
   Router.register('/internal/cash', 'internal', Modules.cash.render, false);
   Router.register('/internal/expenses', 'internal', Modules.expenses.render, false);
   Router.register('/internal/reports', 'internal', Modules.reports.render, false);
+  Router.register('/internal/whatsapp', 'internal', Modules.wa.render, false);
   Router.register('/internal/users', 'internal', Modules.users.render, false);
   Router.register('/internal/settings', 'internal', function (c) { return Modules.settings.render(c, 'toko'); }, false);
   Router.register('/internal/audit', 'internal', function (c) { return Modules.settings.render(c, 'audit'); }, false);
