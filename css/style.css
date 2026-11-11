@@ -587,3 +587,5 @@ img { max-width: 100%; }
   #wa-info-btn { display: none; }
   .wa-messages { max-height: 60vh; }
 }
+
+.wa-warn { border-left: 4px solid var(--danger); background: var(--danger-bg); font-size: 0.88rem; font-weight: 600; }
