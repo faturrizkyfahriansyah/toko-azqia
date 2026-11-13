@@ -124,7 +124,7 @@ Modules.transactions = (function () {
         (sale.status === 'VOID' ? '<p class="hint">Alasan void: ' + Utils.escapeHtml(sale.void_reason || '-') + '</p>' : '') +
         '<div class="field-row" style="margin-top:12px;">' +
         '<button class="btn btn-secondary btn-block" id="tx-print">Cetak Ulang</button>' +
-        (sale.status !== 'VOID' ? '<button class="btn btn-outline btn-block" id="tx-void" style="color:var(--red);">Void</button>' : '') +
+        (sale.status !== 'VOID' && Auth.role() !== 'KASIR' ? '<button class="btn btn-outline btn-block" id="tx-void" style="color:var(--red);">Void</button>' : '') +
         '</div>'
       );
       m.querySelector('#tx-print').addEventListener('click', function () {

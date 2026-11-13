@@ -62,6 +62,19 @@ window.Layout = (function () {
     { path: '#/shop/tracking', label: 'Lacak', icon: ICONS.chat }
   ];
 
+  /** Navigasi bawah: peran penuh = bawaan; peran terbatas = 3-4 tujuan utamanya. */
+  function bottomNavFor() {
+    var r = window.Auth && Auth.role ? Auth.role() : '';
+    var map = {
+      KASIR: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/pos', 'Kasir', 'pos'], ['#/internal/transactions', 'Riwayat', 'receipt'], ['#/internal/customers', 'Pelanggan', 'user']],
+      PETUGAS_GUDANG: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/products', 'Produk', 'box'], ['#/internal/inventory', 'Stok', 'clipboard'], ['#/internal/purchases', 'Masuk', 'inbox']],
+      ADMIN_WA: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/whatsapp', 'WhatsApp', 'chat'], ['#/internal/orders', 'Pesanan', 'truck'], ['#/internal/customers', 'Pelanggan', 'user']]
+    };
+    if (map[r]) return map[r].map(function (x) { return { path: x[0], label: x[1], icon: ICONS[x[2]] }; });
+    if (r && r !== 'PEMILIK' && r !== 'PENGELOLA') return [{ path: '#/internal/profile', label: 'Profil', icon: ICONS.userCircle }];
+    return BOTTOM_NAV;
+  }
+
   function drawerGroups() {
     var groups = [
       { label: 'UTAMA', items: [
@@ -76,6 +89,7 @@ window.Layout = (function () {
         { path: '#/internal/returns', label: 'Retur', ic: ICONS.undo }
       ] },
       { label: 'PERSEDIAAN', items: [
+        { path: '#/internal/prices', label: 'Harga & Satuan', ic: ICONS.tag },
         { path: '#/internal/inventory', label: 'Stok', ic: ICONS.clipboard },
         { path: '#/internal/opname', label: 'Stok Opname', ic: ICONS.search }
       ] },
@@ -91,7 +105,8 @@ window.Layout = (function () {
       { label: 'KEUANGAN', items: [
         { path: '#/internal/cash', label: 'Kas', ic: ICONS.wallet },
         { path: '#/internal/expenses', label: 'Pengeluaran', ic: ICONS.receipt },
-        { path: '#/internal/reports', label: 'Laporan', ic: ICONS.trend }
+        { path: '#/internal/reports', label: 'Laporan', ic: ICONS.trend },
+        { path: '#/internal/reconcile', label: 'Rekonsiliasi', ic: ICONS.shield }
       ] }
     ];
     var sistem = { label: 'SISTEM', items: [] };
@@ -106,8 +121,9 @@ window.Layout = (function () {
       sistem.items = [{ path: '#/internal/settings', label: 'Pengaturan', ic: ICONS.gear }];
     }
     groups.push(sistem);
-    groups.push({ label: 'AKUN', items: [{ path: '#/internal/profile', label: 'Profil Saya', ic: ICONS.userCircle }] });
-    return groups;
+    groups.push({ label: 'AKUN', items: [{ path: '#/internal/notifications', label: 'Notifikasi', ic: ICONS.bell }, { path: '#/internal/profile', label: 'Profil Saya', ic: ICONS.userCircle }] });
+    return groups.map(function (g) { return { label: g.label, items: g.items.filter(function (i) { return !window.Auth || Auth.canAccess(i.path); }) }; })
+      .filter(function (g) { return g.items.length > 0; });
   }
 
   function brandHtml(compact, white) {
@@ -145,6 +161,7 @@ window.Layout = (function () {
         '<div class="topbar">' + brandHtml() +
         '<a href="#/shop/cart" class="icon-btn" aria-label="Keranjang">' + ICONS.pos + (cartCount > 0 ? '<span class="bell-badge">' + cartCount + '</span>' : '') + '</a></div>' +
         '<div id="view-container" class="content"></div>' +
+        '<div class="shop-foot">Staf toko (Pemilik, Pengelola, Kasir)? <a href="staff.html" id="link-staff-login">Masuk di sini</a></div>' +
         renderBottomNav(SHOP_NAV);
       setThemeColor('#ffffff');
       return;
@@ -176,7 +193,7 @@ window.Layout = (function () {
       '<a href="#/internal/profile" class="avatar-btn" aria-label="Profil">' + avatarInitial() + '</a>' +
       '</div>' +
       '<div id="view-container" class="content"></div>' +
-      renderBottomNav(BOTTOM_NAV) +
+      renderBottomNav(bottomNavFor()) +
       '</div>' +
       renderDrawer(groups);
     setThemeColor('#d81324');
@@ -220,9 +237,16 @@ window.Layout = (function () {
     overlay.addEventListener('click', close);
     Utils.qsa('.drawer-link', panel).forEach(function (a) { a.addEventListener('click', close); });
     var drawerLogout = document.getElementById('drawer-logout');
-    if (drawerLogout) drawerLogout.addEventListener('click', function (e) { e.preventDefault(); close(); Auth.logout().then(function () { location.hash = '#/internal/login'; }); });
+    if (drawerLogout) drawerLogout.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (window.Offline && Offline.pendingCount() > 0 && !confirm('Ada ' + Offline.pendingCount() + ' transaksi offline yang BELUM terkirim. Jika keluar, data tetap tersimpan di perangkat ini dan dikirim saat Anda masuk lagi. Keluar sekarang?')) return;
+      close(); Auth.logout().then(function () { location.hash = '#/internal/login'; }); });
   }
 
+  function setBellCount(n) {
+    var badge = document.getElementById('bell-badge'); if (!badge) return;
+    if (n > 0) { badge.style.display = 'block'; badge.textContent = n > 99 ? '99+' : n; } else badge.style.display = 'none';
+  }
   function wireNotificationBell() {
     var bell = document.getElementById('btn-bell');
     if (!bell) return;
@@ -278,5 +302,11 @@ window.Layout = (function () {
     if (meta) meta.setAttribute('content', hex);
   }
 
-  return { renderShell: renderShell, highlightActive: highlightActive, ICONS: ICONS };
+  /** Perbarui lencana jumlah keranjang di header toko tanpa membangun ulang halaman. */
+  function updateCartBadge() {
+    var a = document.querySelector('.topbar a[href="#/shop/cart"]'); if (!a) return;
+    var n = window.Cart ? window.Cart.count() : 0, b = a.querySelector('.bell-badge');
+    if (n > 0) { if (!b) { b = document.createElement('span'); b.className = 'bell-badge'; a.appendChild(b); } b.textContent = n; } else if (b) b.remove();
+  }
+  return { renderShell: renderShell, highlightActive: highlightActive, ICONS: ICONS, updateCartBadge: updateCartBadge, setBellCount: setBellCount };
 })();

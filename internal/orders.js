@@ -25,10 +25,11 @@ Modules.orders = (function () {
     if (orders.length === 0) { box.innerHTML = '<div class="empty-state">Belum ada pesanan online.</div>'; return; }
     box.innerHTML = orders.map(function (o) {
       var actions = '';
+      if (Auth.role() === 'ADMIN_WA') { /* hanya melihat: ubah status & konfirmasi bayar dilakukan Pengelola */ } else {
       if (o.payment_status !== 'PAID') actions += '<button class="btn btn-secondary btn-sm" data-confirm-pay="' + o.order_id + '">Konfirmasi Pembayaran</button> ';
       (NEXT_STATUS[o.order_status] || []).forEach(function (s) {
         actions += '<button class="btn btn-outline btn-sm" data-status="' + o.order_id + '" data-to="' + s + '">' + Utils.escapeHtml(Utils.orderStatusInfo(s).label) + '</button> ';
-      });
+      }); }
       return '<div class="card"><div class="row"><strong>' + o.order_number + '</strong>' + Utils.orderStatusBadge(o.order_status) + '</div>' +
         '<div class="muted">' + o.fulfillment_type + ' &middot; ' + Utils.escapeHtml(o.customer_name || 'Pickup') + ' &middot; ' + Utils.formatCurrency(o.grand_total) + '</div>' +
         '<div style="margin-top:8px;">' + actions + '</div></div>';

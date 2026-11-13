@@ -22,7 +22,10 @@
 <div id="app"><div class="content"><div class="spinner"></div></div></div>
 
 <script defer src="js/utils.js"></script>
+<script defer src="js/pricing.js"></script>
 <script defer src="js/api.js"></script>
+<script defer src="js/offline.js"></script>
+<script defer src="js/notify.js"></script>
 <script defer src="js/auth.js"></script>
 <script defer src="js/config.js"></script>
 <script defer src="js/cart-state.js"></script>
@@ -57,6 +60,9 @@
 <script defer src="internal/promos.js"></script>
 <script defer src="internal/messages.js"></script>
 <script defer src="internal/wa.js"></script>
+<script defer src="internal/reconcile.js"></script>
+<script defer src="internal/prices.js"></script>
+<script defer src="internal/notifications.js"></script>
 <script defer src="internal/profile.js"></script>
 
 <script defer src="shop/home.js"></script>
@@ -97,6 +103,9 @@ document.addEventListener('DOMContentLoaded', function () {
   Router.register('/internal/expenses', 'internal', Modules.expenses.render, false);
   Router.register('/internal/reports', 'internal', Modules.reports.render, false);
   Router.register('/internal/whatsapp', 'internal', Modules.wa.render, false);
+  Router.register('/internal/reconcile', 'internal', Modules.reconcile.render, false);
+  Router.register('/internal/prices', 'internal', Modules.prices.render, false);
+  Router.register('/internal/notifications', 'internal', Modules.notifications.render, false);
   Router.register('/internal/users', 'internal', Modules.users.render, false);
   Router.register('/internal/settings', 'internal', function (c) { return Modules.settings.render(c, 'toko'); }, false);
   Router.register('/internal/audit', 'internal', function (c) { return Modules.settings.render(c, 'audit'); }, false);
@@ -114,6 +123,11 @@ document.addEventListener('DOMContentLoaded', function () {
     console.warn('TOKO AZQIA: apiBaseUrl belum diisi di js/config.js - lihat docs/DEPLOYMENT.md TAHAP 11.');
   }
   Router.render();
+
+  // Kasir offline: aplikasi staf HARUS terpasang di Service Worker (cache aplikasi) agar bisa dibuka tanpa internet.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
 });
 </script>
 </body>

@@ -95,6 +95,8 @@ Modules.products = (function () {
     });
   }
 
+  function miniThumb(p) { return p.photo_id ? '<img class="mini-thumb" loading="lazy" alt="" src="' + Utils.photoUrl(p.photo_id, 96) + '" onerror="this.remove()">' : ''; }
+
   function renderList(products) {
     lastProducts = products;
     var box = document.getElementById('product-list');
@@ -110,14 +112,14 @@ Modules.products = (function () {
 
     var tableHtml = '<div class="table-wrap"><table><thead><tr><th>Produk</th><th>SKU</th><th>Harga</th><th>Stok</th><th>Status</th><th></th></tr></thead><tbody>' +
       products.map(function (p) {
-        return '<tr><td>' + Utils.escapeHtml(p.product_name) + '</td><td class="muted">' + Utils.escapeHtml(p.sku) + '</td>' +
+        return '<tr><td>' + miniThumb(p) + Utils.escapeHtml(p.product_name) + '</td><td class="muted">' + Utils.escapeHtml(p.sku) + '</td>' +
           '<td>' + Utils.formatCurrency(p.selling_price) + '</td><td>' + stockText(p) + '</td>' +
           '<td>' + statusBadge(p) + '</td><td><button class="btn btn-outline btn-sm" data-edit="' + p.product_id + '">Edit</button></td></tr>';
       }).join('') + '</tbody></table></div>';
 
     var listHtml = '<div class="mobile-list">' + products.map(function (p) {
       return '<div class="data-row" data-edit="' + p.product_id + '" style="cursor:pointer;">' +
-        '<div class="main"><div class="title">' + Utils.escapeHtml(p.product_name) + '</div><div class="sub">' + Utils.escapeHtml(p.sku) + ' &middot; ' + (isManaged(p) ? 'Stok ' : '') + stockText(p) + '</div></div>' +
+        '<div class="main"><div class="title">' + miniThumb(p) + Utils.escapeHtml(p.product_name) + '</div><div class="sub">' + Utils.escapeHtml(p.sku) + ' &middot; ' + (isManaged(p) ? 'Stok ' : '') + stockText(p) + '</div></div>' +
         '<div class="end"><div class="amount">' + Utils.formatCurrency(p.selling_price) + '</div>' + statusBadge(p) + '</div></div>';
     }).join('') + '</div>';
 
@@ -160,6 +162,9 @@ Modules.products = (function () {
       (isEdit ? '<p class="muted">SKU: <strong>' + Utils.escapeHtml(p.sku) + '</strong> (dibuat otomatis, tidak bisa diubah)</p>' : '') +
       '<form id="product-form" novalidate>' +
       '<div class="field"><label>Nama <span style="color:var(--red);">*</span></label><input name="product_name" value="' + Utils.escapeHtml(p.product_name || '') + '" placeholder="Contoh: Tahu Bulat" required></div>' +
+      '<div class="field photo-field"><label>Foto produk</label><div class="photo-row"><div class="photo-prev" id="photo-prev"></div><div class="photo-ctl">' +
+      '<input type="file" id="photo-file" accept="image/*" hidden><button type="button" class="btn btn-outline btn-sm" id="photo-pick">Pilih / ambil foto</button> <button type="button" class="btn btn-ghost btn-sm" id="photo-remove" style="display:none;">Hapus foto</button>' +
+      '<div class="hint" id="photo-hint">Disimpan di Google Drive toko. Dikecilkan otomatis.</div></div></div></div>' +
       '<div class="field-row"><div class="field"><label>Harga Beli</label><input name="purchase_price" type="number" inputmode="numeric" min="0" value="' + (p.purchase_price || '') + '" placeholder="Rp0"></div>' +
       '<div class="field"><label>Harga Jual <span style="color:var(--red);">*</span></label><input name="selling_price" type="number" inputmode="numeric" min="0" value="' + (p.selling_price || '') + '" placeholder="Rp0" required></div></div>' +
 
@@ -209,6 +214,29 @@ Modules.products = (function () {
       c.addEventListener('click', function () { m.querySelector('#alt-conversion').value = c.getAttribute('data-conv'); });
     });
 
+    var pendingPhoto = null, photoId = p.photo_id || '';
+    function drawPhoto(dataUrl) {
+      var prev = m.querySelector('#photo-prev'), rm = m.querySelector('#photo-remove');
+      prev.innerHTML = dataUrl ? '<img alt="" src="' + dataUrl + '">' : (photoId ? '<img alt="" src="' + Utils.photoUrl(photoId, 240) + '" onerror="this.remove()">' : '<span class="muted">Belum ada foto</span>');
+      rm.style.display = (dataUrl || photoId) ? '' : 'none';
+    }
+    drawPhoto();
+    m.querySelector('#photo-pick').addEventListener('click', function () { m.querySelector('#photo-file').click(); });
+    m.querySelector('#photo-file').addEventListener('change', function (e) {
+      var file = e.target.files[0]; if (!file) return;
+      var hint = m.querySelector('#photo-hint'); hint.textContent = 'Memproses foto...';
+      Utils.resizeImage(file, 800, 0.8).then(function (r) {
+        if (isEdit) {
+          hint.textContent = 'Mengunggah ke Drive...';
+          return Api.call('product.photo.upload', { product_id: p.product_id, mime: r.mime, data: r.data }).then(function (res) { photoId = res.photo_id; p.photo_id = photoId; drawPhoto(r.dataUrl); hint.textContent = 'Foto tersimpan (' + Math.round(r.bytes / 1024) + ' KB).'; });
+        }
+        pendingPhoto = r; drawPhoto(r.dataUrl); hint.textContent = 'Foto akan diunggah setelah produk disimpan (' + Math.round(r.bytes / 1024) + ' KB).';
+      }).catch(function (err) { hint.textContent = ''; Utils.toast(err.message, 'error'); });
+    });
+    m.querySelector('#photo-remove').addEventListener('click', function () {
+      if (pendingPhoto) { pendingPhoto = null; drawPhoto(); return; }
+      if (isEdit && photoId) Api.call('product.photo.remove', { product_id: p.product_id }).then(function () { photoId = ''; p.photo_id = ''; drawPhoto(); Utils.toast('Foto dihapus.', 'success'); }).catch(function (err) { Utils.toast(err.message, 'error'); });
+    });
     m.querySelector('#product-form').addEventListener('submit', function (e) {
       e.preventDefault();
       var f = e.target, val = function (n) { return f.elements[n] ? f.elements[n].value.trim() : ''; };
@@ -232,6 +260,7 @@ Modules.products = (function () {
       var submitBtn = f.querySelector('button[type=submit]');
       submitBtn.disabled = true; submitBtn.textContent = 'Menyimpan...';
       Api.call(isEdit ? 'product.update' : 'product.create', payload).then(function (result) {
+        if (!isEdit && pendingPhoto) { Api.call('product.photo.upload', { product_id: result.product_id, mime: pendingPhoto.mime, data: pendingPhoto.data }).catch(function () { Utils.toast('Produk tersimpan, tetapi foto gagal diunggah. Buka Edit untuk mengunggah ulang.', 'error'); }); }
         Utils.toast(isEdit ? 'Produk disimpan.' : ('Produk disimpan. SKU: ' + result.sku), 'success');
         Utils.closeModal(); Router.render();
       }).catch(function (err) {

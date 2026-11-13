@@ -15,7 +15,7 @@ Modules.customers = (function () {
     var box = document.getElementById('list');
     if (rows.length === 0) { box.innerHTML = '<div class="empty-state">Belum ada pelanggan tercatat.</div>'; return; }
     box.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Nama</th><th>WhatsApp</th><th>Tipe</th><th></th></tr></thead><tbody>' +
-      rows.map(function (c) { return '<tr><td>' + Utils.escapeHtml(c.name) + '</td><td>' + Utils.escapeHtml(c.whatsapp || '-') + '</td><td>' + Utils.escapeHtml(c.type) + '</td><td><button class="btn btn-outline btn-sm" data-edit="' + c.customer_id + '">Edit</button></td></tr>'; }).join('') +
+      rows.map(function (c) { return '<tr><td>' + Utils.escapeHtml(c.name) + '</td><td>' + Utils.escapeHtml(c.whatsapp || '-') + '</td><td>' + Utils.escapeHtml(c.type) + '</td><td>' + (Auth.role() === 'KASIR' || Auth.role() === 'ADMIN_WA' ? '' : '<button class="btn btn-outline btn-sm" data-edit="' + c.customer_id + '">Edit</button>') + '</td></tr>'; }).join('') +
       '</tbody></table></div>';
     Utils.qsa('[data-edit]', box).forEach(function (b) { b.addEventListener('click', function () { openForm(rows.filter(function (r) { return r.customer_id === b.getAttribute('data-edit'); })[0]); }); });
   }

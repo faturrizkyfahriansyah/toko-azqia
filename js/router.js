@@ -11,9 +11,10 @@ window.Router = (function () {
     routes.push({ regex: new RegExp('^' + pattern + '$'), keys: keys, area: area, render: render, publicRoute: !!publicRoute });
   }
 
+  /** Jalur tanpa query (#/shop/catalog?category=C1 -> /shop/catalog). Query dibaca modul sendiri dari location.hash. */
   function currentPath() {
     var h = location.hash || '#/shop/home';
-    return h.replace(/^#/, '');
+    return h.replace(/^#/, '').split('?')[0];
   }
 
   function navigate(path) { location.hash = path; }
@@ -49,17 +50,41 @@ window.Router = (function () {
 
     if (window.Layout) window.Layout.renderShell(appRoot, matched.route.area, path);
     var container = document.getElementById('view-container') || appRoot;
+    if (isInternal && window.Auth && Auth.isLoggedIn()) { if (window.Offline) Offline.start(); if (window.Notify) Notify.start(); }
+    if (isInternal && !matched.route.publicRoute && window.Auth && Auth.canAccess && !Auth.canAccess('#' + path)) {
+      container.innerHTML = '<div class="empty-state"><h2>Tidak ada akses</h2><p>Halaman ini tidak tersedia untuk peran Anda.</p><a class="btn btn-primary" href="' + Auth.homePath() + '">Kembali</a></div>';
+      return;
+    }
     Utils.showLoading(container);
     try {
       Promise.resolve(matched.route.render(container, matched.params)).catch(function (err) {
         console.error(err);
-        container.innerHTML = '<div class="empty-state"><h2>Terjadi kesalahan</h2><p>' + Utils.escapeHtml(err.message || String(err)) + '</p></div>';
+        errorView(container, err);
       });
     } catch (err) {
-      container.innerHTML = '<div class="empty-state"><h2>Terjadi kesalahan</h2><p>' + Utils.escapeHtml(err.message || String(err)) + '</p></div>';
+      errorView(container, err);
     }
     if (window.Layout) window.Layout.highlightActive(path);
   }
+
+  /** Kesalahan memuat halaman: pesan jelas + tombol Coba lagi (tidak pernah spinner tanpa akhir). */
+  function errorView(container, err) {
+    var net = err && (err.code === 'TIMEOUT' || err.code === 'NETWORK_ERROR');
+    container.innerHTML = '<div class="empty-state"><h2>' + (net ? 'Tidak dapat memuat data' : 'Terjadi kesalahan') + '</h2><p>' + Utils.escapeHtml((err && err.message) || String(err)) + '</p>' +
+      '<button class="btn btn-primary" id="route-retry">Coba lagi</button></div>';
+    var b = container.querySelector('#route-retry');
+    if (b) b.addEventListener('click', function () { render(); });
+  }
+
+  /** Banner koneksi: pengguna tahu kapan offline (tidak menunggu tanpa penjelasan). */
+  function connBanner(show) {
+    var b = document.getElementById('conn-banner');
+    if (!b) { b = document.createElement('div'); b.id = 'conn-banner'; b.setAttribute('role', 'status'); b.textContent = 'Tidak ada koneksi internet. Data mungkin tidak terbaru.'; document.body.appendChild(b); }
+    b.hidden = !show;
+  }
+  window.addEventListener('offline', function () { connBanner(true); });
+  window.addEventListener('online', function () { connBanner(false); if (window.Utils && Utils.toast) Utils.toast('Koneksi kembali.', 'success'); });
+  window.addEventListener('DOMContentLoaded', function () { if (navigator.onLine === false) connBanner(true); });
 
   window.addEventListener('hashchange', render);
   window.addEventListener('DOMContentLoaded', render);

@@ -12,7 +12,7 @@ Modules.users = (function () {
     });
   }
   // Role tidak punya endpoint sendiri di V1 - dua role sudah tetap (PEMILIK/PENGELOLA), lihat 00_Config.gs ROLE_IDS.
-  function fetchRoles() { return Promise.resolve([{ role_id: 'ROLE-PEMILIK', role_name: 'PEMILIK' }, { role_id: 'ROLE-PENGELOLA', role_name: 'PENGELOLA' }]); }
+  function fetchRoles() { return Promise.resolve([{ role_id: 'ROLE-PEMILIK', role_name: 'PEMILIK' }, { role_id: 'ROLE-PENGELOLA', role_name: 'PENGELOLA' }, { role_id: 'ROLE-KASIR', role_name: 'KASIR' }, { role_id: 'ROLE-PETUGAS_GUDANG', role_name: 'PETUGAS_GUDANG' }, { role_id: 'ROLE-ADMIN_WA', role_name: 'ADMIN_WA' }]); }
 
   function renderList(users, roles) {
     var roleName = {}; roles.forEach(function (r) { roleName[r.role_id] = r.role_name; });

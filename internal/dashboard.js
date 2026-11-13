@@ -37,30 +37,31 @@ Modules.dashboard = {
         '<div class="hero-card">' +
         '<div class="hero-hello">Hi, ' + Utils.escapeHtml(firstName) + '</div>' +
         (roleLabel ? '<div class="hero-role">' + Utils.escapeHtml(roleLabel) + ' &middot; TOKO AZQIA</div>' : '') +
-        '<div class="hero-label">Pendapatan Hari Ini</div>' +
-        '<div class="hero-value">' + rp(d.penjualan_hari_ini) + '</div>' +
+        (d.penjualan_hari_ini !== undefined ? '<div class="hero-label">Pendapatan Hari Ini</div><div class="hero-value">' + rp(d.penjualan_hari_ini) + '</div>' : '') +
         '<div class="hero-metrics">' +
-        '<div class="m"><div class="l">Transaksi</div><div class="v">' + n(d.jumlah_transaksi) + '</div></div>' +
-        '<div class="m"><div class="l">Laba Kotor</div><div class="v">' + rp(d.laba_kotor) + '</div></div>' +
-        '<div class="m"><div class="l">Pengeluaran</div><div class="v">' + rp(d.pengeluaran) + '</div></div>' +
+        (d.jumlah_transaksi !== undefined ? '<div class="m"><div class="l">Transaksi</div><div class="v">' + n(d.jumlah_transaksi) + '</div></div>' : '') +
+        (d.laba_kotor !== undefined ? '<div class="m"><div class="l">Laba Kotor</div><div class="v">' + rp(d.laba_kotor) + '</div></div>' : '') +
+        (d.pengeluaran !== undefined ? '<div class="m"><div class="l">Pengeluaran</div><div class="v">' + rp(d.pengeluaran) + '</div></div>' : '') +
         '</div></div>' +
 
         section('Kondisi Toko',
           '<div class="tile-grid">' +
-          tile('Produk Menipis', n(d.produk_stok_menipis), '#/internal/inventory', I.alert, n(d.produk_stok_menipis) > 0 ? 'warn' : '') +
-          tile('Produk Habis', n(d.produk_habis), '#/internal/inventory', I.box, n(d.produk_habis) > 0 ? 'danger' : '') +
-          tile('Pesanan Baru', n(d.pesanan_online), '#/internal/orders', I.bag, 'info') +
-          tile('Perlu Diproses', n(d.pesanan_menunggu_diproses), '#/internal/orders', I.truck, n(d.pesanan_menunggu_diproses) > 0 ? 'warn' : '') +
-          tile('Promo Aktif', n(d.promo_aktif_count), '#/internal/promos', I.tagPromo, 'ok') +
-          tile('Piutang Pelanggan', rp(d.piutang_outstanding), '#/internal/receivables', I.card, n(d.piutang_outstanding) > 0 ? 'info' : '') +
+          (d.produk_stok_menipis !== undefined ? tile('Produk Menipis', n(d.produk_stok_menipis), '#/internal/inventory', I.alert, n(d.produk_stok_menipis) > 0 ? 'warn' : '') : '') +
+          (d.produk_habis !== undefined ? tile('Produk Habis', n(d.produk_habis), '#/internal/inventory', I.box, n(d.produk_habis) > 0 ? 'danger' : '') : '') +
+          (d.pesanan_online !== undefined ? tile('Pesanan Baru', n(d.pesanan_online), '#/internal/orders', I.bag, 'info') : '') +
+          (d.pesanan_menunggu_diproses !== undefined ? tile('Perlu Diproses', n(d.pesanan_menunggu_diproses), '#/internal/orders', I.truck, n(d.pesanan_menunggu_diproses) > 0 ? 'warn' : '') : '') +
+          (d.promo_aktif_count !== undefined ? tile('Promo Aktif', n(d.promo_aktif_count), '#/internal/promos', I.tagPromo, 'ok') : '') +
+          (d.piutang_outstanding !== undefined ? tile('Piutang Pelanggan', rp(d.piutang_outstanding), '#/internal/receivables', I.card, n(d.piutang_outstanding) > 0 ? 'info' : '') : '') +
           '</div>') +
 
         section('Aksi Cepat',
           '<div class="qa-grid">' +
-          qa('Tambah Produk', '#/internal/products', I.plus, '') +
-          qa('Barang Masuk', '#/internal/purchases', I.inbox, 'c-blue') +
-          qa('Piutang', '#/internal/receivables', I.card, 'c-gold') +
-          qa('Stok', '#/internal/inventory', I.clipboard, 'c-green') +
+          (Auth.canAccess('#/internal/products') ? qa('Tambah Produk', '#/internal/products', I.plus, '') : '') +
+          (Auth.canAccess('#/internal/purchases') ? qa('Barang Masuk', '#/internal/purchases', I.inbox, 'c-blue') : '') +
+          (Auth.canAccess('#/internal/receivables') ? qa('Piutang', '#/internal/receivables', I.card, 'c-gold') : '') +
+          (Auth.canAccess('#/internal/inventory') ? qa('Stok', '#/internal/inventory', I.clipboard, 'c-green') : '') +
+          (Auth.role() === 'KASIR' ? qa('Kasir', '#/internal/pos', I.plus, '') : '') +
+          (Auth.role() === 'ADMIN_WA' ? qa('WhatsApp', '#/internal/whatsapp', I.bag, 'c-green') : '') +
           '</div>') +
 
         section('Transaksi Terbaru',

@@ -27,6 +27,23 @@ window.Auth = (function () {
     if (!isLoggedIn()) { location.hash = '#/internal/login'; return false; }
     return true;
   }
+  // ---- Peran (K-18). PENTING: ini hanya MERAPIKAN tampilan; keputusan akses SELALU di backend (fail-closed). ----
+  var ROLE_ACCESS = {
+    KASIR: ['dashboard', 'pos', 'transactions', 'customers', 'notifications', 'profile'],
+    PETUGAS_GUDANG: ['dashboard', 'products', 'purchases', 'inventory', 'opname', 'returns', 'suppliers', 'notifications', 'profile'],
+    ADMIN_WA: ['dashboard', 'whatsapp', 'orders', 'customers', 'notifications', 'profile']
+  };
+  var ROLE_HOME = { KASIR: '#/internal/pos', PETUGAS_GUDANG: '#/internal/inventory', ADMIN_WA: '#/internal/whatsapp' };
+  function role() { var u = getUser(); return u && u.role ? u.role : ''; }
+  function isFullRole(r) { return r === 'PEMILIK' || r === 'PENGELOLA'; }
+  /** Boleh membuka halaman ini (untuk menu & penjaga rute). Peran tak dikenal hanya boleh Profil. */
+  function canAccess(path) {
+    var r = role();
+    if (!r || isFullRole(r)) return true;
+    var seg = String(path || '').replace(/^#?\/internal\//, '').split(/[\/?]/)[0];
+    return (ROLE_ACCESS[r] || ['profile']).indexOf(seg) !== -1;
+  }
+  function homePath() { var r = role(); if (window.AZQIA_ENTRY === 'kasir' && canAccess('#/internal/pos')) return '#/internal/pos'; return (ROLE_HOME[r]) || (isFullRole(r) || !r ? '#/internal/dashboard' : '#/internal/profile'); }
   function isPemilik() {
     var u = getUser();
     return u && u.role === 'PEMILIK';
@@ -34,6 +51,6 @@ window.Auth = (function () {
 
   return {
     getToken: getToken, getUser: getUser, isLoggedIn: isLoggedIn, clearSession: clearSession,
-    login: login, logout: logout, requireInternalAuth: requireInternalAuth, isPemilik: isPemilik
+    login: login, logout: logout, requireInternalAuth: requireInternalAuth, isPemilik: isPemilik, role: role, canAccess: canAccess, homePath: homePath
   };
 })();

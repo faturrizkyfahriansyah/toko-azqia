@@ -4,7 +4,7 @@
 window.Utils = (function () {
   function formatCurrency(n) {
     n = Number(n) || 0;
-    return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+    return 'Rp\u00A0' + Math.round(n).toLocaleString('id-ID'); // spasi tak-terpisah: "Rp 30.000" tidak pecah antar baris
   }
   function formatDate(iso) {
     if (!iso) return '-';
@@ -64,8 +64,49 @@ window.Utils = (function () {
     document.body.style.overflow = '';
   }
 
+  /** Kecilkan foto di perangkat (sisi terpanjang <= maxSide, JPEG) sebelum diunggah: cepat, hemat kuota & ruang Drive. -> {mime, data(base64), dataUrl, bytes} */
+  function resizeImage(file, maxSide, quality) {
+    maxSide = maxSide || 800; quality = quality || 0.8;
+    return new Promise(function (resolve, reject) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, maxSide / Math.max(w, h));
+        var cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+        var c2 = cv.getContext('2d'); c2.fillStyle = '#fff'; c2.fillRect(0, 0, cv.width, cv.height); c2.drawImage(img, 0, 0, cv.width, cv.height);
+        var q = quality, dataUrl = cv.toDataURL('image/jpeg', q);
+        while (dataUrl.length * 0.75 > 450 * 1024 && q > 0.35) { q -= 0.1; dataUrl = cv.toDataURL('image/jpeg', q); }
+        URL.revokeObjectURL(url);
+        resolve({ mime: 'image/jpeg', data: dataUrl.split(',')[1], dataUrl: dataUrl, bytes: Math.round(dataUrl.length * 0.75) });
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Berkas bukan gambar yang dapat dibaca.')); };
+      img.src = url;
+    });
+  }
+
+  /** Foto produk di Google Drive (berkas dibagikan "siapa pun dengan tautan"). */
+  function photoUrl(id, w) { return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + (w || 300); }
+
+  /** Tabel -> kartu pada layar sempit: setiap sel diberi label dari judul kolom (CSS table.cardify). Berlaku untuk SEMUA halaman. */
+  function cardifyTables(root) {
+    qsa('table', root || document).forEach(function (t) {
+      if (t.getAttribute('data-card') === '1' || t.classList.contains('no-card') || t.closest('.receipt-preview')) return;
+      if (t.querySelector('td[colspan]')) return;
+      var heads = qsa('thead th', t).map(function (h) { return h.textContent.trim(); });
+      if (!heads.length) return;
+      qsa('tbody tr', t).forEach(function (tr) { qsa('td', tr).forEach(function (td, i) { if (heads[i]) td.setAttribute('data-label', heads[i]); }); });
+      t.classList.add('cardify'); t.setAttribute('data-card', '1');
+    });
+  }
+  (function watchTables() {
+    var tick = null;
+    function run() { tick = null; cardifyTables(document); }
+    function arm() { if (typeof MutationObserver === 'undefined' || !document.body) return; new MutationObserver(function () { if (!tick) tick = setTimeout(run, 40); }).observe(document.body, { childList: true, subtree: true }); run(); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm); else arm();
+  })();
+
   function showLoading(container) {
-    container.innerHTML = '<div class="spinner"></div>';
+    container.innerHTML = '<div class="spinner"></div><div class="loading-hint" hidden>Masih memuat&hellip; koneksi mungkin lambat.</div>';
+    setTimeout(function () { var h = container.querySelector && container.querySelector('.loading-hint'); if (h) h.hidden = false; }, 6000);
   }
 
   /**
@@ -94,7 +135,7 @@ window.Utils = (function () {
   return {
     formatCurrency: formatCurrency, formatDate: formatDate, formatDateOnly: formatDateOnly,
     escapeHtml: escapeHtml, qs: qs, qsa: qsa, el: el, debounce: debounce,
-    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading,
+    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading, photoUrl: photoUrl, cardifyTables: cardifyTables, resizeImage: resizeImage,
     orderStatusInfo: orderStatusInfo, orderStatusBadge: orderStatusBadge
   };
 })();
