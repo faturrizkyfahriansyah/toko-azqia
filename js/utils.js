@@ -83,18 +83,58 @@ window.Utils = (function () {
     });
   }
 
+  /** Nomor Indonesia -> 0856-9476-5370 (angka 0 di depan yang hilang karena disimpan sebagai angka dipulihkan). */
+  function formatPhoneId(raw) {
+    var d = String(raw || '').replace(/\D/g, ''); if (!d) return '';
+    if (d.indexOf('62') === 0) d = '0' + d.slice(2); else if (d.charAt(0) === '8') d = '0' + d;
+    return d.replace(/^(\d{4})(\d{4})(\d+)$/, '$1-$2-$3');
+  }
+  function waLink(raw) {
+    var d = String(raw || '').replace(/\D/g, ''); if (d.indexOf('0') === 0) d = '62' + d.slice(1); else if (d.charAt(0) === '8') d = '62' + d;
+    return 'https://wa.me/' + d;
+  }
+
   /** Foto produk di Google Drive (berkas dibagikan "siapa pun dengan tautan"). */
   function photoUrl(id, w) { return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + (w || 300); }
 
-  /** Tabel -> kartu pada layar sempit: setiap sel diberi label dari judul kolom (CSS table.cardify). Berlaku untuk SEMUA halaman. */
+  /**
+   * Tabel padat di HP: tampilkan kolom paling penting (nama + maksimal 2 kolom: uang/status/stok/tanggal), sisanya di LEMBAR RINCIAN
+   * yang naik dari bawah saat baris diketuk (semua kolom + tombol aksi baris). Berlaku otomatis untuk semua tabel >= 4 kolom
+   * tanpa kolom gabungan/isian. Di layar lebar tabel tidak berubah.
+   */
+  var CT_GROUPS = [/total|harga|jumlah|sisa|nominal|omzet|saldo|tagihan|nilai/i, /status/i, /stok|qty|terbayar|masuk|keluar/i, /tgl|tanggal|waktu|periode/i];
+  function ctPick(heads) {
+    var vis = heads.map(function () { return false; }); vis[0] = true; var left = 2;
+    var ok = function (i) { return i > 0 && !vis[i] && heads[i] && !/^(aksi|opsi|#)$/i.test(heads[i]); };
+    CT_GROUPS.forEach(function (re) { if (left <= 0) return; for (var i = 1; i < heads.length; i++) { if (ok(i) && re.test(heads[i])) { vis[i] = true; left--; return; } } });
+    for (var i = 1; i < heads.length && left > 0; i++) if (ok(i)) { vis[i] = true; left--; }
+    return vis;
+  }
+  function ctOpenSheet(tr, heads) {
+    var tds = qsa(':scope > td', tr), title = (tds[0] ? tds[0].textContent : '').trim(), rows = '';
+    tds.forEach(function (td, i) { if (i === 0 || !heads[i]) return; var v = td.textContent.trim(); if (!v || /^(aksi|opsi)$/i.test(heads[i])) return; rows += '<div class="ct-sr"><span class="ct-sl">' + escapeHtml(heads[i]) + '</span><span class="ct-sv">' + escapeHtml(v) + '</span></div>'; });
+    var acts = qsa('button, a[href]', tr);
+    var m = openModal('<h3>' + escapeHtml(title || 'Rincian') + '</h3><div class="ct-sheet">' + rows + '</div>' + (acts.length ? '<div class="ct-acts">' + acts.map(function (a, i) { return '<button type="button" class="btn ' + (i === 0 ? 'btn-primary' : 'btn-outline') + ' btn-block" data-ct-act="' + i + '">' + escapeHtml(a.textContent.trim() || 'Buka') + '</button>'; }).join('') + '</div>' : ''));
+    qsa('[data-ct-act]', m).forEach(function (b) { b.addEventListener('click', function () { var target = acts[Number(b.getAttribute('data-ct-act'))]; closeModal(); setTimeout(function () { target.click(); }, 60); }); });
+  }
   function cardifyTables(root) {
     qsa('table', root || document).forEach(function (t) {
-      if (t.getAttribute('data-card') === '1' || t.classList.contains('no-card') || t.closest('.receipt-preview')) return;
-      if (t.querySelector('td[colspan]')) return;
+      if (t.classList.contains('no-card') || t.closest('.receipt-preview')) return;
       var heads = qsa('thead th', t).map(function (h) { return h.textContent.trim(); });
-      if (!heads.length) return;
-      qsa('tbody tr', t).forEach(function (tr) { qsa('td', tr).forEach(function (td, i) { if (heads[i]) td.setAttribute('data-label', heads[i]); }); });
-      t.classList.add('cardify'); t.setAttribute('data-card', '1');
+      if (heads.length < 4 || t.querySelector('td[colspan], input, select, textarea')) return;
+      var vis = ctPick(heads);
+      t.classList.add('ct');
+      qsa('thead th', t).forEach(function (th, i) { th.classList.toggle('ct-hide', !vis[i]); });
+      qsa('tbody tr', t).forEach(function (tr) { tr.classList.add('ct-row'); qsa(':scope > td', tr).forEach(function (td, i) { td.classList.toggle('ct-hide', !vis[i]); if (heads[i]) td.setAttribute('data-label', heads[i]); }); });
+      if (!t.__ct) {
+        t.__ct = true;
+        t.addEventListener('click', function (e) {
+          if (!window.matchMedia || !window.matchMedia('(max-width: 640px)').matches) return;
+          var tr = e.target.closest('tbody tr.ct-row'); if (!tr || !t.contains(tr)) return;
+          if (e.target.closest('button, a, input, select')) return;
+          ctOpenSheet(tr, qsa('thead th', t).map(function (h) { return h.textContent.trim(); }));
+        });
+      }
     });
   }
   (function watchTables() {
@@ -135,7 +175,7 @@ window.Utils = (function () {
   return {
     formatCurrency: formatCurrency, formatDate: formatDate, formatDateOnly: formatDateOnly,
     escapeHtml: escapeHtml, qs: qs, qsa: qsa, el: el, debounce: debounce,
-    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading, photoUrl: photoUrl, cardifyTables: cardifyTables, resizeImage: resizeImage,
+    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading, photoUrl: photoUrl, formatPhoneId: formatPhoneId, waLink: waLink, cardifyTables: cardifyTables, resizeImage: resizeImage,
     orderStatusInfo: orderStatusInfo, orderStatusBadge: orderStatusBadge
   };
 })();

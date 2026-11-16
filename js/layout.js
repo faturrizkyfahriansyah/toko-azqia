@@ -44,31 +44,38 @@ window.Layout = (function () {
     bag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>',
     tagPromo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.6 12 21 3 12V3h9l8.6 8.6a1.9 1.9 0 0 1 0 2.8Z"/><circle cx="8" cy="8" r="1.4"/></svg>',
     coin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2C14.3 8.4 13.3 8 12 8c-1.7 0-2.8.8-2.8 2s1 1.7 2.8 2 2.8.8 2.8 2-1.1 2-2.8 2c-1.4 0-2.5-.5-3-1.4"/><line x1="12" y1="6.5" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="17.5"/></svg>',
-    logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>'
+    logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+    register: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><rect x="7.5" y="6.5" width="9" height="4" rx="1"/><path d="M8 14.5h.01M12 14.5h.01M16 14.5h.01M8 17.5h.01M12 17.5h.01M16 17.5h.01"/></svg>',
+    orders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l2 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l2-4Z"/><path d="M4 7h16"/><path d="M9 11a3 3 0 0 0 6 0"/></svg>',
+    grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>',
   };
 
   var BOTTOM_NAV = [
     { path: '#/internal/dashboard', label: 'Beranda', icon: ICONS.home },
-    { path: '#/internal/pos', label: 'Kasir', icon: ICONS.pos },
+    { path: '#/internal/pos', label: 'Kasir', icon: ICONS.register },
     { path: '#/internal/products', label: 'Produk', icon: ICONS.box },
-    { path: '#/internal/messages', label: 'Pesan', icon: ICONS.chat },
-    { path: '#/internal/promos', label: 'Promo', icon: ICONS.tag }
+    { path: '#/internal/orders', label: 'Pesanan', icon: ICONS.orders },
+    { path: '#/internal/menu', label: 'Menu', icon: ICONS.grid }
   ];
 
   var SHOP_NAV = [
     { path: '#/shop/home', label: 'Beranda', icon: ICONS.home },
-    { path: '#/shop/catalog', label: 'Katalog', icon: ICONS.box },
-    { path: '#/shop/cart', label: 'Keranjang', icon: ICONS.pos },
-    { path: '#/shop/tracking', label: 'Lacak', icon: ICONS.chat }
+    { path: '#/shop/categories', label: 'Kategori', icon: ICONS.grid },
+    { path: '#/shop/cart', label: 'Keranjang', icon: ICONS.cart },
+    { path: '#/shop/orders', label: 'Pesanan', icon: ICONS.orders },
+    { path: '#/shop/account', label: 'Akun', icon: ICONS.userCircle }
   ];
 
   /** Navigasi bawah: peran penuh = bawaan; peran terbatas = 3-4 tujuan utamanya. */
   function bottomNavFor() {
     var r = window.Auth && Auth.role ? Auth.role() : '';
+    var MENU = ['#/internal/menu', 'Menu', 'grid'];
     var map = {
-      KASIR: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/pos', 'Kasir', 'pos'], ['#/internal/transactions', 'Riwayat', 'receipt'], ['#/internal/customers', 'Pelanggan', 'user']],
-      PETUGAS_GUDANG: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/products', 'Produk', 'box'], ['#/internal/inventory', 'Stok', 'clipboard'], ['#/internal/purchases', 'Masuk', 'inbox']],
-      ADMIN_WA: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/whatsapp', 'WhatsApp', 'chat'], ['#/internal/orders', 'Pesanan', 'truck'], ['#/internal/customers', 'Pelanggan', 'user']]
+      KASIR: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/pos', 'Kasir', 'register'], ['#/internal/transactions', 'Riwayat', 'receipt'], ['#/internal/customers', 'Pelanggan', 'user'], MENU],
+      PETUGAS_GUDANG: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/products', 'Produk', 'box'], ['#/internal/inventory', 'Stok', 'clipboard'], ['#/internal/purchases', 'Masuk', 'inbox'], MENU],
+      ADMIN_WA: [['#/internal/dashboard', 'Beranda', 'home'], ['#/internal/whatsapp', 'WhatsApp', 'chat'], ['#/internal/orders', 'Pesanan', 'orders'], ['#/internal/customers', 'Pelanggan', 'user'], MENU]
     };
     if (map[r]) return map[r].map(function (x) { return { path: x[0], label: x[1], icon: ICONS[x[2]] }; });
     if (r && r !== 'PEMILIK' && r !== 'PENGELOLA') return [{ path: '#/internal/profile', label: 'Profil', icon: ICONS.userCircle }];
@@ -76,52 +83,48 @@ window.Layout = (function () {
   }
 
   function drawerGroups() {
+    var pem = Auth.isPemilik();
     var groups = [
       { label: 'UTAMA', items: [
         { path: '#/internal/dashboard', label: 'Beranda', ic: ICONS.home },
-        { path: '#/internal/pos', label: 'Kasir', ic: ICONS.pos },
-        { path: '#/internal/products', label: 'Produk', ic: ICONS.box }
+        { path: '#/internal/pos', label: 'Kasir', ic: ICONS.register },
+        { path: '#/internal/products', label: 'Produk', ic: ICONS.box },
+        { path: '#/internal/orders', label: 'Pesanan Online', ic: ICONS.orders }
       ] },
-      { label: 'TRANSAKSI', items: [
-        { path: '#/internal/transactions', label: 'Riwayat Transaksi', ic: ICONS.receipt },
-        { path: '#/internal/orders', label: 'Pesanan Online', ic: ICONS.truck },
+      { label: 'STOK', items: [
+        { path: '#/internal/inventory', label: 'Stok', ic: ICONS.clipboard },
+        { path: '#/internal/opname', label: 'Stok Opname', ic: ICONS.search },
         { path: '#/internal/purchases', label: 'Barang Masuk', ic: ICONS.inbox },
         { path: '#/internal/returns', label: 'Retur', ic: ICONS.undo }
       ] },
-      { label: 'PERSEDIAAN', items: [
-        { path: '#/internal/prices', label: 'Harga & Satuan', ic: ICONS.tag },
-        { path: '#/internal/inventory', label: 'Stok', ic: ICONS.clipboard },
-        { path: '#/internal/opname', label: 'Stok Opname', ic: ICONS.search }
-      ] },
-      { label: 'RELASI', items: [
+      { label: 'PENJUALAN', items: [
+        { path: '#/internal/transactions', label: 'Riwayat Transaksi', ic: ICONS.receipt },
         { path: '#/internal/customers', label: 'Pelanggan', ic: ICONS.user },
         { path: '#/internal/receivables', label: 'Piutang Pelanggan', ic: ICONS.card },
+        { path: '#/internal/promos', label: 'Promo', ic: ICONS.tag },
+        { path: '#/internal/prices', label: 'Harga & Satuan', ic: ICONS.coin }
+      ] },
+      { label: 'PEMBELIAN', items: [
         { path: '#/internal/suppliers', label: 'Supplier', ic: ICONS.truck },
         { path: '#/internal/payables', label: 'Hutang Supplier', ic: ICONS.invoice }
-      ] },
-      { label: 'WHATSAPP', items: [
-        { path: '#/internal/whatsapp', label: 'WhatsApp Center', ic: ICONS.chat }
       ] },
       { label: 'KEUANGAN', items: [
         { path: '#/internal/cash', label: 'Kas', ic: ICONS.wallet },
         { path: '#/internal/expenses', label: 'Pengeluaran', ic: ICONS.receipt },
         { path: '#/internal/reports', label: 'Laporan', ic: ICONS.trend },
         { path: '#/internal/reconcile', label: 'Rekonsiliasi', ic: ICONS.shield }
-      ] }
-    ];
-    var sistem = { label: 'SISTEM', items: [] };
-    if (Auth.isPemilik()) {
-      sistem.items = [
+      ] },
+      { label: 'TOKO', items: [
+        { path: '#/internal/whatsapp', label: 'WhatsApp', ic: ICONS.chat },
+        { path: '#/internal/messages', label: 'Pesan', ic: ICONS.chat }
+      ].concat(pem ? [
         { path: '#/internal/users', label: 'Pengguna', ic: ICONS.usersGroup },
         { path: '#/internal/settings', label: 'Pengaturan', ic: ICONS.gear },
         { path: '#/internal/audit', label: 'Audit Log', ic: ICONS.shield },
         { path: '#/internal/backup', label: 'Backup', ic: ICONS.cloud }
-      ];
-    } else {
-      sistem.items = [{ path: '#/internal/settings', label: 'Pengaturan', ic: ICONS.gear }];
-    }
-    groups.push(sistem);
-    groups.push({ label: 'AKUN', items: [{ path: '#/internal/notifications', label: 'Notifikasi', ic: ICONS.bell }, { path: '#/internal/profile', label: 'Profil Saya', ic: ICONS.userCircle }] });
+      ] : [{ path: '#/internal/settings', label: 'Pengaturan', ic: ICONS.gear }]) },
+      { label: 'AKUN', items: [{ path: '#/internal/notifications', label: 'Notifikasi', ic: ICONS.bell }, { path: '#/internal/profile', label: 'Profil Saya', ic: ICONS.userCircle }] }
+    ];
     return groups.map(function (g) { return { label: g.label, items: g.items.filter(function (i) { return !window.Auth || Auth.canAccess(i.path); }) }; })
       .filter(function (g) { return g.items.length > 0; });
   }
@@ -158,12 +161,15 @@ window.Layout = (function () {
       appRoot.className = '';
       var cartCount = (window.Cart ? window.Cart.count() : 0);
       appRoot.innerHTML =
-        '<div class="topbar">' + brandHtml() +
-        '<a href="#/shop/cart" class="icon-btn" aria-label="Keranjang">' + ICONS.pos + (cartCount > 0 ? '<span class="bell-badge">' + cartCount + '</span>' : '') + '</a></div>' +
+        '<div class="topbar on-brand">' +
+        '<a href="#/shop/home" class="brand brand-internal" aria-label="TOKO AZQIA - Beranda"><img class="brand-logo" src="' + LOGO_WHITE + '" alt="TOKOQIA" onerror="this.style.display=\'none\'"><span class="brand-text"><span class="brand-name">TOKO AZQIA</span><span class="brand-tagline">Melayani Kebutuhan, Membangun Kepercayaan.</span></span></a>' +
+        '<div class="topbar-spacer"></div>' +
+        '<a href="#/shop/cart" class="icon-btn" aria-label="Keranjang">' + ICONS.cart + (cartCount > 0 ? '<span class="bell-badge">' + cartCount + '</span>' : '') + '</a></div>' +
         '<div id="view-container" class="content"></div>' +
-        '<div class="shop-foot">Staf toko (Pemilik, Pengelola, Kasir)? <a href="staff.html" id="link-staff-login">Masuk di sini</a></div>' +
+        '<div class="shop-foot" id="shop-foot"><span id="shop-foot-info"></span><a href="staff.html" id="link-staff-login">Staf</a></div>' +
         renderBottomNav(SHOP_NAV);
-      setThemeColor('#ffffff');
+      setThemeColor('#d81324');
+      fillShopFooter();
       return;
     }
 
@@ -204,6 +210,18 @@ window.Layout = (function () {
 
     wireDrawer();
     wireNotificationBell();
+  }
+
+  /** Alamat, jam, dan kontak sebagai teks kecil di dasar halaman toko (data dari pengaturan toko). */
+  function fillShopFooter() {
+    Api.call('public.storeInfo', {}).then(function (s) {
+      var el = document.getElementById('shop-foot-info'); if (!el) return;
+      var parts = [];
+      if (s.store_address) parts.push(Utils.escapeHtml(s.store_address));
+      if (s.store_hours) parts.push('Buka ' + Utils.escapeHtml(s.store_hours));
+      if (s.store_contact) { var wa = Utils.waLink(s.store_contact); parts.push('WA <a href="' + wa + '" target="_blank" rel="noopener">' + Utils.formatPhoneId(s.store_contact) + '</a>'); }
+      el.innerHTML = parts.join(' &middot; ') + (parts.length ? ' &middot; ' : '');
+    }).catch(function () {});
   }
 
   function renderDrawer(groups) {
@@ -254,7 +272,7 @@ window.Layout = (function () {
       var badge = document.getElementById('bell-badge');
       if (d.unread_count > 0) { badge.style.display = 'block'; badge.textContent = d.unread_count > 99 ? '99+' : d.unread_count; }
     }).catch(function () {});
-    bell.addEventListener('click', function () { openNotificationPanel(); });
+    bell.addEventListener('click', function () { location.hash = '#/internal/notifications'; });
   }
 
   function openNotificationPanel() {
@@ -304,9 +322,11 @@ window.Layout = (function () {
 
   /** Perbarui lencana jumlah keranjang di header toko tanpa membangun ulang halaman. */
   function updateCartBadge() {
-    var a = document.querySelector('.topbar a[href="#/shop/cart"]'); if (!a) return;
-    var n = window.Cart ? window.Cart.count() : 0, b = a.querySelector('.bell-badge');
-    if (n > 0) { if (!b) { b = document.createElement('span'); b.className = 'bell-badge'; a.appendChild(b); } b.textContent = n; } else if (b) b.remove();
+    var n = window.Cart ? window.Cart.count() : 0;
+    Utils.qsa('.topbar a[href="#/shop/cart"], .bottom-nav a[href="#/shop/cart"]').forEach(function (a) {
+      var b = a.querySelector('.bell-badge');
+      if (n > 0) { if (!b) { b = document.createElement('span'); b.className = 'bell-badge'; a.appendChild(b); } b.textContent = n; } else if (b) b.remove();
+    });
   }
-  return { renderShell: renderShell, highlightActive: highlightActive, ICONS: ICONS, updateCartBadge: updateCartBadge, setBellCount: setBellCount };
+  return { renderShell: renderShell, highlightActive: highlightActive, ICONS: ICONS, updateCartBadge: updateCartBadge, setBellCount: setBellCount, drawerGroups: drawerGroups };
 })();

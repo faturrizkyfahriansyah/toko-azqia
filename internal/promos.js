@@ -10,7 +10,7 @@ Modules.promos = (function () {
     return Promise.all([Api.call('promo.list', {}), Api.call('category.list', {}), Api.call('product.list', { activeOnly: true })]).then(function (r) {
       if (!container.isConnected) return;
       categories = r[1].categories; products = r[2].products;
-      container.innerHTML = '<div class="row"><h1>Promo</h1><button class="btn btn-primary" id="btn-add">+ Promo Baru</button></div><div id="list"></div>';
+      container.innerHTML = '<div class="row"><h1 class="page-title" style="margin:0;">Promo</h1><button class="btn btn-primary" id="btn-add">+ Promo</button></div><div id="list" style="margin-top:12px;"></div>';
       renderList(r[0].promos);
       document.getElementById('btn-add').addEventListener('click', openForm);
     });
@@ -18,19 +18,17 @@ Modules.promos = (function () {
 
   function renderList(rows) {
     var box = document.getElementById('list');
-    if (rows.length === 0) { box.innerHTML = '<div class="empty-state">Belum ada promo.</div>'; return; }
-    box.innerHTML = rows.map(function (p) {
+    if (rows.length === 0) { box.innerHTML = '<div class="empty-state"><div class="empty-title">Belum ada promo</div><div class="empty-sub">Ketuk "+ Promo" untuk membuat diskon pertama.</div></div>'; return; }
+    box.innerHTML = '<div class="card" style="padding-top:2px;padding-bottom:2px;">' + rows.map(function (p) {
       var typeLabel = { PERCENTAGE: p.value + '%', NOMINAL: Utils.formatCurrency(p.value) + ' off', SPECIAL_PRICE: 'Harga ' + Utils.formatCurrency(p.value), QTY_BASED: 'Min ' + p.min_qty + ' pcs' }[p.type] || p.type;
       var active = String(p.active) === 'true' || p.active === true;
-      return '<div class="card"><div class="row"><strong>' + Utils.escapeHtml(p.name) + '</strong>' + (active ? '<span class="badge green">Aktif</span>' : '<span class="badge grey">Nonaktif</span>') + '</div>' +
-        '<div class="muted">' + typeLabel + ' &middot; ' + Utils.formatDateOnly(p.start_date) + ' - ' + Utils.formatDateOnly(p.end_date) + '</div>' +
-        '<button class="btn btn-outline btn-sm" style="margin-top:6px;" data-toggle="' + p.promo_id + '" data-active="' + active + '">' + (active ? 'Nonaktifkan' : 'Aktifkan') + '</button></div>';
-    }).join('');
-    Utils.qsa('[data-toggle]', box).forEach(function (b) {
-      b.addEventListener('click', function () {
-        Api.call('promo.update', { promo_id: b.getAttribute('data-toggle'), active: b.getAttribute('data-active') !== 'true' }).then(function () {
-          Utils.toast('Promo diperbarui.', 'success'); Router.render();
-        });
+      return '<div class="switch-row"><div><div class="sw-title">' + Utils.escapeHtml(p.name) + '</div><div class="sw-sub">' + typeLabel + ' &middot; ' + Utils.formatDateOnly(p.start_date) + ' - ' + Utils.formatDateOnly(p.end_date) + '</div></div>' +
+        '<label class="switch"><input type="checkbox" data-toggle="' + p.promo_id + '"' + (active ? ' checked' : '') + '><span class="slider"></span></label></div>';
+    }).join('') + '</div>';
+    Utils.qsa('[data-toggle]', box).forEach(function (c) {
+      c.addEventListener('change', function () {
+        Api.call('promo.update', { promo_id: c.getAttribute('data-toggle'), active: c.checked }).then(function () { Utils.toast(c.checked ? 'Promo diaktifkan.' : 'Promo dinonaktifkan.', 'success'); })
+          .catch(function (err) { c.checked = !c.checked; Utils.toast(err.message, 'error'); });
       });
     });
   }

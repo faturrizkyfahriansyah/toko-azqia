@@ -5,22 +5,23 @@ window.Modules = window.Modules || {};
 Modules.login = {
   render: function (container) {
     if (Auth.isLoggedIn()) { Router.navigate(Auth.homePath()); return; }
+    var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
     container.innerHTML =
-      '<div class="card" style="margin-top:32px;text-align:center;">' +
-      '<img src="assets/icons/tokoqia-app-icon-192.png" alt="TOKOQIA" style="width:84px;height:84px;border-radius:20px;margin:6px auto 12px;display:block;box-shadow:0 6px 16px rgba(216,19,36,0.28);">' +
-      '<h1 style="margin-bottom:2px;">TOKO AZQIA</h1>' +
-      '<p class="muted" style="margin-bottom:14px;">Melayani Kebutuhan, Membangun Kepercayaan.</p>' +
-      '<p style="margin-bottom:4px;font-weight:800;">Masuk Staf</p>' +
-      '<p class="muted" style="margin-bottom:16px;font-size:0.84rem;">Pemilik, Pengelola, Kasir, Petugas Gudang, dan Admin WhatsApp masuk di sini. Setelah masuk, Anda langsung diarahkan sesuai peran (Kasir langsung ke layar Kasir).</p>' +
-      '<form id="login-form" style="text-align:left;">' +
-      '<div class="field"><label>Username</label><input name="username" required autocomplete="username"></div>' +
-      '<div class="field"><label>Password</label><input name="password" type="password" required autocomplete="current-password"></div>' +
+      '<div class="card login-card">' +
+      '<img src="assets/icons/tokoqia-app-icon-192.png" alt="TOKOQIA" class="login-logo">' +
+      '<h1 class="login-title">Masuk</h1>' +
+      '<form id="login-form">' +
+      '<div class="field"><label>Username</label><input name="username" required autocomplete="username" autocapitalize="none"></div>' +
+      '<div class="field"><label>Password</label><div class="pw-wrap"><input name="password" id="pw" type="password" required autocomplete="current-password"><button type="button" class="pw-eye" id="pw-eye" aria-label="Lihat password" aria-pressed="false">' + EYE + '</button></div></div>' +
       '<button class="btn btn-primary btn-block" type="submit">Masuk</button>' +
       '</form>' +
-      '<div id="login-error" class="muted" style="color:var(--red);margin-top:10px;"></div>' +
-      (window.AZQIA_ENTRY === 'kasir' ? '<button type="button" class="btn btn-outline btn-block" id="btn-install" style="margin-top:14px;">Pasang "Kasir AZQIA" di layar utama</button><p class="hint" id="install-hint" style="display:none;text-align:left;"></p>' : '') +
-      '<a href="index.html" class="muted" style="display:block;margin-top:14px;font-size:0.84rem;">&larr; Ke toko pelanggan</a>' +
+      '<div id="login-error" class="login-error" role="alert"></div>' +
+      '<p class="login-help">Lupa kata sandi? Hubungi pemilik.</p>' +
+      (window.AZQIA_ENTRY === 'kasir' ? '<button type="button" class="btn btn-outline btn-block" id="btn-install" style="margin-top:6px;">Pasang \"Kasir AZQIA\" di layar utama</button><p class="hint" id="install-hint" style="display:none;text-align:left;"></p>' : '') +
       '</div>';
+    document.getElementById('pw-eye').addEventListener('click', function () {
+      var i = document.getElementById('pw'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; this.setAttribute('aria-pressed', show ? 'true' : 'false'); this.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Lihat password');
+    });
 
     var inst = document.getElementById('btn-install');
     if (inst) inst.addEventListener('click', function () {

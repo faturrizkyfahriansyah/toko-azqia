@@ -60,11 +60,54 @@ Modules.notifications = (function () {
         .catch(function (e) { root.querySelector('#nw-msg').textContent = e.message; }).then(function () { b.disabled = false; });
     });
   }
-  function render(container) {
-    container.innerHTML = '<h1 class="page-title">Notifikasi</h1><div id="nf-device">' + deviceSection() + '</div><div id="nf-wa-slot"></div>';
-    wireDevice(container);
+  // ---------- kotak masuk ----------
+  var DEST = { STOK_HABIS: 'inventory', STOK_MENIPIS: 'inventory', NEGATIVE_STOCK: 'inventory', PESANAN_ONLINE_BARU: 'orders', ONLINE_PAID: 'orders', REFUND_PENDING: 'orders', SALE_DONE: 'transactions', VOID_SALE: 'transactions', PIUTANG_BARU: 'receivables', PIUTANG_JATUH_TEMPO: 'receivables', HUTANG_JATUH_TEMPO: 'payables', WA_HANDOVER: 'whatsapp', PESAN_PELANGGAN: 'messages', PESAN_INTERNAL: 'messages', DAILY_SUMMARY: 'dashboard' };
+  function destOf(nf) { var seg = DEST[nf.event] || DEST[nf.type]; if (!seg) return ''; var p = '#/internal/' + seg; return Auth.canAccess(p) ? p : ''; }
+  function dayLabel(iso) {
+    var d = String(iso || '').substring(0, 10), t = new Date(), pad = function (x) { return (x < 10 ? '0' : '') + x; };
+    var today = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate()); t.setDate(t.getDate() - 1);
+    var yest = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+    return d === today ? 'Hari ini' : (d === yest ? 'Kemarin' : (Utils.formatDateOnly ? Utils.formatDateOnly(iso) : d));
+  }
+  function inboxHtml(list, onlyUnread) {
+    var rows = list.filter(function (x) { return !onlyUnread || !(String(x.read) === 'true' || x.read === true); });
+    if (!rows.length) return '<div class="empty-state"><div class="empty-title">' + (onlyUnread ? 'Semua sudah dibaca' : 'Belum ada notifikasi') + '</div></div>';
+    var out = '', lastDay = '';
+    rows.forEach(function (x, i) {
+      var dl = dayLabel(x.created_at); if (dl !== lastDay) { out += '<div class="nt-day">' + esc(dl) + '</div>'; lastDay = dl; }
+      var unread = !(String(x.read) === 'true' || x.read === true), dest = destOf(x);
+      out += '<' + (dest ? 'a href="' + dest + '"' : 'div') + ' class="nt-row' + (unread ? ' unread' : '') + '"><span class="nt-dot"></span><span class="nt-body"><span class="nt-title">' + esc(x.title) + '</span><span class="nt-msg">' + esc(x.message) + '</span></span><span class="nt-time">' + esc(String(x.created_at || '').substring(11, 16)) + '</span></' + (dest ? 'a' : 'div') + '>';
+    });
+    return '<div class="nt-list">' + out + '</div>';
+  }
+  function permissionBanner() {
+    if (!('Notification' in window) || Notification.permission !== 'default') return '';
+    return '<div class="nt-banner"><div><strong>Aktifkan notifikasi di HP</strong><div class="muted">Agar pesanan dan transaksi muncul di layar HP.</div></div><button class="btn btn-primary btn-sm" id="nt-enable">Aktifkan</button></div>';
+  }
+  function renderInbox(box) {
+    box.innerHTML = permissionBanner() + '<div class="chip-row nt-filter"><button class="chip active" data-f="all">Semua</button><button class="chip" data-f="unread">Belum dibaca</button><button class="btn btn-ghost btn-sm" id="nt-all" style="margin-left:auto;">Tandai semua dibaca</button></div><div id="nt-data"></div>';
+    var data = box.querySelector('#nt-data'), list = [], filter = 'all';
+    function draw() { data.innerHTML = inboxHtml(list, filter === 'unread'); }
+    Utils.showLoading(data);
+    function load() { return Api.call('notification.list', {}).then(function (d) { list = d.notifications || []; if (window.Layout && Layout.setBellCount) Layout.setBellCount(d.unread_count || 0); draw(); }).catch(function (e) { data.innerHTML = '<div class="empty-state"><div class="empty-title">Tidak dapat memuat</div><div class="empty-sub">' + esc(e.message) + '</div></div>'; }); }
+    Utils.qsa('[data-f]', box).forEach(function (b) { b.addEventListener('click', function () { filter = b.getAttribute('data-f'); Utils.qsa('[data-f]', box).forEach(function (x) { x.classList.toggle('active', x === b); }); draw(); }); });
+    box.querySelector('#nt-all').addEventListener('click', function () { Api.call('notification.markRead', {}).then(function () { Utils.toast('Semua notifikasi ditandai dibaca.', 'success'); return load(); }).catch(function (e) { Utils.toast(e.message, 'error'); }); });
+    var en = box.querySelector('#nt-enable');
+    if (en) en.addEventListener('click', function () { Notify.requestSystemPermission().then(function (r) { if (r === 'granted') { var p = Notify.getPrefs(); p.system = true; Notify.setPrefs(p); Notify.showSystem('TOKO AZQIA', 'Notifikasi di layar HP aktif.', 'test'); Utils.toast('Notifikasi HP diaktifkan.', 'success'); } else Utils.toast('Izin tidak diberikan. Ubah di pengaturan browser/HP.', 'error'); box.querySelector('.nt-banner').remove(); }); });
+    return load();
+  }
+  function renderSettings(box) {
+    box.innerHTML = '<div id="nf-device">' + deviceSection() + '</div><div id="nf-wa-slot"></div>';
+    wireDevice(box);
     if (!Auth.isPemilik()) return Promise.resolve();
-    return Api.call('notify.settings.get', {}).then(function (s) { var slot = container.querySelector('#nf-wa-slot'); if (!slot) return; slot.innerHTML = waSection(s); wireWa(slot); });
+    return Api.call('notify.settings.get', {}).then(function (s) { var slot = box.querySelector('#nf-wa-slot'); if (!slot) return; slot.innerHTML = waSection(s); wireWa(slot); });
+  }
+  function render(container) {
+    container.innerHTML = '<h1 class="page-title">Notifikasi</h1><div class="tabs" id="nf-tabs"><button class="active" data-t="inbox">Notifikasi</button><button data-t="settings">Pengaturan</button></div><div id="nf-body"></div>';
+    var body = container.querySelector('#nf-body');
+    function show(t) { Utils.qsa('#nf-tabs button', container).forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-t') === t); }); return t === 'inbox' ? renderInbox(body) : renderSettings(body); }
+    Utils.qsa('#nf-tabs button', container).forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-t')); }); });
+    return show('inbox');
   }
   return { render: render };
 })();

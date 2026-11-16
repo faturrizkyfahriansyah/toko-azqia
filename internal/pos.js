@@ -74,6 +74,40 @@ Modules.pos = (function () {
     return '<div class="thumb" style="background:' + hashColor(p.category_id) + ';">' + (p.photo_id ? '<img loading="lazy" alt="" src="' + Utils.photoUrl(p.photo_id, 240) + '" onerror="this.remove()">' : '') + '<span class="thumb-ini">' + ini + '</span>' + badge + '</div>';
   }
 
+  /** Baris keranjang yang diwakili kartu produk: satuan dasar bila ada, kalau tidak baris pertama produk itu. */
+  function cardLine(productId) {
+    var rows = cart.filter(function (l) { return l.product_id === productId; });
+    return rows.filter(function (l) { return l.unit && (l.unit.is_base === true || String(l.unit.is_base) === 'true'); })[0] || rows[0] || null;
+  }
+  function ctrlHtml(p) {
+    var l = cardLine(p.product_id), managed = isManaged(p), out = managed && availableOf(p) <= 0 && Offline.isOnline();
+    if (!l) return '<button type="button" class="btn pc-add" data-pc="add"' + (out ? ' disabled' : '') + '>' + (out ? 'Habis' : 'Tambah') + '</button>';
+    return '<div class="pc-step"><button type="button" class="pc-b" data-pc="dec" aria-label="Kurangi">&minus;</button>' +
+      '<input class="pc-q" type="number" inputmode="numeric" min="0" value="' + l.qty + '" data-pc="qty" aria-label="Jumlah"><button type="button" class="pc-b" data-pc="inc" aria-label="Tambah">+</button></div>';
+  }
+  function refreshCtrls() {
+    Utils.qsa('.pctrl').forEach(function (el) {
+      var p = allProducts.filter(function (x) { return x.product_id === el.getAttribute('data-pid'); })[0]; if (!p) return;
+      var active = document.activeElement; if (active && el.contains(active) && active.getAttribute('data-pc') === 'qty') return; // jangan ganggu ketikan
+      el.innerHTML = ctrlHtml(p);
+      el.closest('.pcard').classList.toggle('in-cart', !!cardLine(p.product_id));
+    });
+  }
+  function stepLine(p, delta) {
+    var l = cardLine(p.product_id);
+    if (!l) { if (delta > 0) addToCart(p); return; }
+    l.qty += delta;
+    if (l.qty <= 0) cart.splice(cart.indexOf(l), 1); else priceLine(l);
+    renderCart();
+  }
+  function setLineQty(p, n) {
+    n = Math.max(0, Math.floor(Number(n) || 0));
+    var l = cardLine(p.product_id);
+    if (!l) { if (n > 0) { addToCart(p); l = cardLine(p.product_id); if (l && n > 1) { l.qty = n; priceLine(l); renderCart(); } } return; }
+    if (n === 0) cart.splice(cart.indexOf(l), 1); else { l.qty = n; priceLine(l); }
+    renderCart();
+  }
+
   function addToCart(p) {
     var units = unitsByProduct[p.product_id] || [], base = baseUnit(units);
     if (!base) { Utils.toast('Produk ini belum punya satuan terdaftar.', 'error'); return; }
@@ -173,19 +207,28 @@ Modules.pos = (function () {
     box.innerHTML = '<div class="product-grid">' + list.map(function (p) {
       var managed = isManaged(p), avail = availableOf(p), out = managed && avail <= 0 && Offline.isOnline();
       var badge = managed ? '<span class="stock-badge' + (avail <= 0 ? ' out' : '') + '">' + (avail <= 0 ? 'Habis' : avail) + '</span>' : '';
-      return '<div class="pcard' + (out ? ' disabled' : '') + '" data-add="' + p.product_id + '" role="button" tabindex="0">' + thumbHtml(p, badge) +
+      return '<div class="pcard' + (out ? ' disabled' : '') + (cardLine(p.product_id) ? ' in-cart' : '') + '" data-add="' + p.product_id + '" role="button" tabindex="0">' + thumbHtml(p, badge) +
         '<div class="pbody"><div class="pname">' + Utils.escapeHtml(p.product_name) + '</div><div class="pprice">' + Utils.formatCurrency(p.selling_price) + '</div>' +
-        '<div class="pmeta">' + Utils.escapeHtml(catName[p.category_id] || '') + '</div><button type="button" class="btn"' + (out ? ' disabled' : '') + '>' + (out ? 'Habis' : 'Tambah') + '</button></div></div>';
+        '<div class="pmeta">' + Utils.escapeHtml(catName[p.category_id] || '') + '</div><div class="pctrl" data-pid="' + p.product_id + '">' + ctrlHtml(p) + '</div></div></div>';
     }).join('') + '</div>';
     Utils.qsa('[data-add]', box).forEach(function (card) {
-      card.addEventListener('click', function () {
-        var p = allProducts.filter(function (x) { return x.product_id === card.getAttribute('data-add'); })[0];
-        if (!p) return;
+      var pid = card.getAttribute('data-add');
+      function prod() { return allProducts.filter(function (x) { return x.product_id === pid; })[0]; }
+      card.addEventListener('click', function (e) {
+        var p = prod(); if (!p) return;
+        var t = e.target.closest('[data-pc]'), act = t && t.getAttribute('data-pc');
+        if (act === 'qty') return;                       // mengetik jumlah: jangan menambah
+        if (act === 'dec') { stepLine(p, -1); return; }
+        if (act === 'inc') { stepLine(p, 1); return; }
         if (isManaged(p) && availableOf(p) <= 0) {
           if (Offline.isOnline()) return;
           Utils.toast('Stok tercatat habis. Mode offline: tetap dicatat, stok menjadi negatif.', 'info');
         }
         addToCart(p);
+      });
+      card.addEventListener('change', function (e) {
+        var t = e.target; if (!t || t.getAttribute('data-pc') !== 'qty') return;
+        var p = prod(); if (p) setLineQty(p, t.value);
       });
     });
   }
@@ -229,7 +272,7 @@ Modules.pos = (function () {
   }
 
   function renderCart() {
-    updateCartBar();
+    updateCartBar(); refreshCtrls();
     var box = document.getElementById('pos-cart');
     if (box) {
       if (cart.length === 0) box.innerHTML = '<div class="empty-state">Keranjang masih kosong.</div>';
@@ -307,7 +350,7 @@ Modules.pos = (function () {
       var base = { items: cart.map(function (l) { return { product_id: l.product_id, qty: l.qty, discount: l.discount, unit_id: l.unit_id }; }), discount: discount, payments: payments, customer_id: cid || undefined, idempotency_key: 'sale_' + Date.now() + '_' + Math.random().toString(36).slice(2) };
       var cname = custName();
       function finished(isQueued, result, item) {
-        Utils.closeModal(); cart = []; orderDiscount = 0; customerId = ''; updateCartBar();
+        Utils.closeModal(); cart = []; orderDiscount = 0; customerId = ''; updateCartBar(); refreshCtrls();
         if (window.Notify) { Notify.playEvent('SALE_DONE'); if (result && result.sale_number) Notify.rememberSale(result.sale_number); }
         if (isQueued) { Offline.decrementLocal(snapCart); showLocalReceipt(item); renderGrid(); }
         else { if (window.Offline) Api.call('notify.flush', {}).catch(function () {}); showReceipt(result.sale_id); }

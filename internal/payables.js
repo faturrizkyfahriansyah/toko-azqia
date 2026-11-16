@@ -6,7 +6,7 @@ Modules.payables = (function () {
   function render(container) {
     return Api.call('payable.list', {}).then(function (d) {
       if (!container.isConnected) return;
-      container.innerHTML = '<h1>Hutang Supplier</h1>' +
+      container.innerHTML = '<h1 class=\"page-title\">Hutang Supplier</h1>' +
         '<div class="kpi accent"><div class="label">Total Hutang Belum Lunas</div><div class="value">' + Utils.formatCurrency(d.total_outstanding) + '</div></div>' +
         '<div class="table-wrap" style="margin-top:12px;"><table><thead><tr><th>No.</th><th>Supplier</th><th>Total</th><th>Sisa</th><th>Status</th><th></th></tr></thead><tbody>' +
         d.payables.map(rowHtml).join('') + '</tbody></table></div>';

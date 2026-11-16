@@ -6,7 +6,7 @@ Modules.receivables = (function () {
   function render(container) {
     return Api.call('receivable.list', {}).then(function (d) {
       if (!container.isConnected) return;
-      container.innerHTML = '<h1>Piutang Pelanggan</h1>' +
+      container.innerHTML = '<h1 class=\"page-title\">Piutang Pelanggan</h1>' +
         '<div class="kpi accent"><div class="label">Total Piutang Belum Lunas</div><div class="value">' + Utils.formatCurrency(d.total_outstanding) + '</div></div>' +
         '<div class="table-wrap" style="margin-top:12px;"><table><thead><tr><th>No.</th><th>Pelanggan</th><th>Total</th><th>Sisa</th><th>Status</th><th></th></tr></thead><tbody>' +
         d.receivables.map(rowHtml).join('') + '</tbody></table></div>';

@@ -5,7 +5,7 @@
  * (POST ke Apps Script) - transaksi, stok, dan pembayaran WAJIB selalu berupa panggilan
  * jaringan langsung, tidak boleh terlihat "berhasil" saat offline. Lihat docs/KNOWN_LIMITATIONS.md.
  */
-var CACHE_NAME = 'tokoqia-shell-v14';
+var CACHE_NAME = 'tokoqia-shell-v17';
 var IMG_CACHE = 'azqia-img-v1';
 var SHELL_FILES = [
   './', './index.html', './staff.html', './kasir.html', './manifest.json', './manifest-kasir.json', './assets/icons/tokoqia-kasir-192.png', './assets/icons/tokoqia-kasir-512.png', './offline.html',
@@ -14,7 +14,7 @@ var SHELL_FILES = [
   './js/printer/receiptBuilder.js', './js/printer/browserAdapter.js', './js/printer/thermalAdapter.js', './js/printer/serialAdapter.js', './js/printer/localBridgeAdapter.js', './js/printer/printerInterface.js',
   './internal/login.js', './internal/dashboard.js', './internal/pos.js', './internal/transactions.js', './internal/products.js', './internal/inventory.js',
   './internal/purchases.js', './internal/suppliers.js', './internal/payables.js', './internal/customers.js', './internal/receivables.js',
-  './internal/orders.js', './internal/cash.js', './internal/expenses.js', './internal/reports.js', './internal/wa.js', './internal/reconcile.js', './internal/prices.js', './internal/notifications.js', './internal/users.js', './internal/settings.js',
+  './internal/orders.js', './internal/cash.js', './internal/expenses.js', './internal/reports.js', './internal/wa.js', './internal/reconcile.js', './internal/prices.js', './internal/notifications.js', './internal/menu.js', './internal/dashcharts.js', './shop/categories.js', './shop/account.js', './internal/users.js', './internal/settings.js',
   './internal/promos.js', './internal/messages.js', './internal/profile.js',
   './shop/home.js', './shop/catalog.js', './shop/cart.js', './shop/checkout.js', './shop/ui.js', './shop/payment.js', './shop/order.js', './shop/tracking.js',
   './assets/icons/tokoqia-app-icon.png', './assets/icons/tokoqia-app-icon-192.png', './assets/icons/tokoqia-favicon.png',

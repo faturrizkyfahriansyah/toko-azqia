@@ -35,8 +35,8 @@ Modules.products = (function () {
       if (!container.isConnected) return;
       categories = r[0].categories; units = r[1].units;
       container.innerHTML =
-        '<div class="row"><h1>Produk</h1><button class="btn btn-primary" id="btn-add-product">+ Tambah Produk</button></div>' +
-        '<div class="search-box"><input id="product-search" placeholder="Cari produk"></div>' +
+        '<h1 class="page-title">Produk</h1>' +
+        '<div class="tool-row"><input id="product-search" type="search" placeholder="Cari produk atau scan" autocomplete="off"><button class="btn btn-secondary icon-sq" id="btn-scan" aria-label="Scan barcode">' + Layout.ICONS.camera + '</button><button class="btn btn-primary" id="btn-add-product">+ Produk</button></div>' +
         '<div class="filter-row">' +
         '<select id="filter-category"><option value="">Semua Kategori</option>' + categories.map(function (c) { return '<option value="' + c.category_id + '">' + Utils.escapeHtml(c.category_name) + '</option>'; }).join('') + '</select>' +
         '<select id="filter-status"><option value="">Semua Status</option><option value="active">Aktif</option><option value="inactive">Nonaktif</option></select>' +
@@ -47,6 +47,12 @@ Modules.products = (function () {
       renderStdCatsNotice();
       renderList(r[2].products);
       document.getElementById('btn-add-product').addEventListener('click', function () { openForm(); });
+      document.getElementById('btn-scan').addEventListener('click', function () {
+        var sm = Utils.openModal('<h3>Scan Barcode</h3><div id="pscan-area" style="width:100%;min-height:220px;"></div><p class="hint">Arahkan kamera ke barcode produk.</p><button class="btn btn-outline btn-block" id="pscan-cancel">Batal</button>'), ref = null;
+        window.BarcodeTools.startCameraScan('pscan-area', function (text) { if (ref) ref.stop(); Utils.closeModal(); var i = document.getElementById('product-search'); i.value = text; i.dispatchEvent(new Event('input')); },
+          function (err) { Utils.toast('Kamera tidak dapat diakses: ' + err.message, 'error'); }).then(function (s) { ref = s; }).catch(function () {});
+        sm.querySelector('#pscan-cancel').addEventListener('click', function () { if (ref) ref.stop(); Utils.closeModal(); });
+      });
 
       var reload = Utils.debounce(function () {
         var params = { search: document.getElementById('product-search').value, category_id: document.getElementById('filter-category').value };

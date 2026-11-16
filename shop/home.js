@@ -17,7 +17,7 @@ Modules.home = (function () {
         (categories.length ? '<h2 class="shop-h">Kategori</h2>' + ui.chips(categories, '', '#/shop/catalog') : '') +
         '<div class="row shop-h-row"><h2 class="shop-h">Produk</h2><a href="#/shop/catalog">Lihat semua &rarr;</a></div>' +
         (products.length ? ui.grid(products.slice(0, 8)) : '<div class="empty-state">Belum ada produk.</div>') +
-        '<div class="card shop-info">' + (store.store_address ? '<div><strong>Alamat</strong><br>' + esc(store.store_address) + '</div>' : '') + (store.store_hours ? '<div><strong>Jam buka</strong><br>' + esc(store.store_hours) + '</div>' : '') + (store.store_contact ? '<div><strong>Kontak</strong><br>' + esc(store.store_contact) + '</div>' : '') + '</div>';
+        '';
       ui.wire(container, function (id) { return byId[id]; });
       container.querySelector('#home-search').addEventListener('submit', function (e) { e.preventDefault(); var q = e.target.q.value.trim(); location.hash = '#/shop/catalog' + (q ? '?search=' + encodeURIComponent(q) : ''); });
     });

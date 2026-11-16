@@ -29,9 +29,9 @@ window.Auth = (function () {
   }
   // ---- Peran (K-18). PENTING: ini hanya MERAPIKAN tampilan; keputusan akses SELALU di backend (fail-closed). ----
   var ROLE_ACCESS = {
-    KASIR: ['dashboard', 'pos', 'transactions', 'customers', 'notifications', 'profile'],
-    PETUGAS_GUDANG: ['dashboard', 'products', 'purchases', 'inventory', 'opname', 'returns', 'suppliers', 'notifications', 'profile'],
-    ADMIN_WA: ['dashboard', 'whatsapp', 'orders', 'customers', 'notifications', 'profile']
+    KASIR: ['dashboard', 'pos', 'transactions', 'customers', 'notifications', 'menu', 'profile'],
+    PETUGAS_GUDANG: ['dashboard', 'products', 'purchases', 'inventory', 'opname', 'returns', 'suppliers', 'notifications', 'menu', 'profile'],
+    ADMIN_WA: ['dashboard', 'whatsapp', 'orders', 'customers', 'notifications', 'menu', 'profile']
   };
   var ROLE_HOME = { KASIR: '#/internal/pos', PETUGAS_GUDANG: '#/internal/inventory', ADMIN_WA: '#/internal/whatsapp' };
   function role() { var u = getUser(); return u && u.role ? u.role : ''; }

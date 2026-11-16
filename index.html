@@ -68,6 +68,8 @@
 <script defer src="shop/payment.js"></script>
 <script defer src="shop/order.js"></script>
 <script defer src="shop/tracking.js"></script>
+<script defer src="shop/categories.js"></script>
+<script defer src="shop/account.js"></script>
 
 <script>
 // Dibungkus DOMContentLoaded karena script module di atas kini memakai "defer" (optimasi
@@ -82,6 +84,9 @@ document.addEventListener('DOMContentLoaded', function () {
   Router.register('/shop/payment', 'shop', Modules.payment.render, true);
   Router.register('/shop/order', 'shop', Modules.order.render, true);
   Router.register('/shop/tracking', 'shop', Modules.tracking.render, true);
+  Router.register('/shop/orders', 'shop', Modules.tracking.render, true);
+  Router.register('/shop/categories', 'shop', Modules.shopcategories.render, true);
+  Router.register('/shop/account', 'shop', Modules.shopaccount.render, true);
 
   Router.register('/internal/login', 'internal', Modules.login.render, true);
   Router.register('/internal/dashboard', 'internal', Modules.dashboard.render, false);

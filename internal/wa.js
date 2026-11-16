@@ -20,15 +20,24 @@ Modules.wa = (function () {
   function sec(ms) { return (Number(ms || 0) / 1000).toFixed(1).replace('.', ',') + ' dtk'; }
   function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
 
-  function render(container) {
+  /** Halaman utama = percakapan (gelembung chat). Ikhtisar, Bot, dan Monitor ada di dalam Pengaturan WhatsApp (ikon roda gigi). */
+  /** Masuk dari menu/rute: selalu mulai di percakapan (bukan di sub-halaman pengaturan yang terakhir dibuka). */
+  function render(container) { tab = 'chat'; return show(container); }
+  function show(container) {
     stopTimer();
-    var tabs = [['chat', 'Percakapan'], ['overview', 'Ikhtisar'], ['bot', 'Bot'], ['monitor', 'Monitor']];
-    container.innerHTML = '<h1 class="page-title">WhatsApp</h1><div class="tabs" id="wa-tabs">' + tabs.map(function (t) {
-      return '<button data-tab="' + t[0] + '" class="' + (tab === t[0] ? 'active' : '') + '">' + t[1] + '</button>'; }).join('') + '</div><div id="wa-root"></div>';
-    Utils.qsa('#wa-tabs [data-tab]', container).forEach(function (b) { b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); render(container); }); });
+    var I = (window.Layout && window.Layout.ICONS) || {};
+    var inSettings = tab !== 'chat';
+    var tabs = [['overview', 'Ikhtisar'], ['bot', 'Bot'], ['monitor', 'Monitor']];
+    container.innerHTML = inSettings
+      ? '<div class="sub-head"><button class="sub-back" id="wa-set-back" aria-label="Kembali">&#8249;</button><h1 class="page-title">Pengaturan WhatsApp</h1></div><div class="tabs" id="wa-tabs">' + tabs.map(function (t) {
+        return '<button data-tab="' + t[0] + '" class="' + (tab === t[0] ? 'active' : '') + '">' + t[1] + '</button>'; }).join('') + '</div><div id="wa-root"></div>'
+      : '<div class="row"><h1 class="page-title" style="margin:0;">WhatsApp</h1><button class="sub-back" id="wa-gear" aria-label="Pengaturan WhatsApp">' + (I.gear || '&#9881;') + '</button></div><div id="wa-root" style="margin-top:10px;"></div>';
+    var g = container.querySelector('#wa-gear'); if (g) g.addEventListener('click', function () { tab = 'overview'; show(container); });
+    var bk = container.querySelector('#wa-set-back'); if (bk) bk.addEventListener('click', function () { tab = 'chat'; show(container); });
+    Utils.qsa('#wa-tabs [data-tab]', container).forEach(function (b) { b.addEventListener('click', function () { tab = b.getAttribute('data-tab'); show(container); }); });
     var body = container.querySelector('#wa-root');
     var p = tab === 'chat' ? renderChat(body) : tab === 'overview' ? renderOverview(body) : tab === 'bot' ? renderBot(body) : renderMonitor(body);
-    return Promise.resolve(p).catch(function (err) { body.innerHTML = '<div class="empty-state"><div class="empty-title">Gagal memuat</div><div class="empty-sub">' + esc(err && err.message) + '</div><button class="btn btn-primary" id="wa-retry">Coba lagi</button></div>'; var b = body.querySelector('#wa-retry'); if (b) b.addEventListener('click', function () { render(container); }); });
+    return Promise.resolve(p).catch(function (err) { body.innerHTML = '<div class="empty-state"><div class="empty-title">Gagal memuat</div><div class="empty-sub">' + esc(err && err.message) + '</div><button class="btn btn-primary" id="wa-retry">Coba lagi</button></div>'; var b = body.querySelector('#wa-retry'); if (b) b.addEventListener('click', function () { show(container); }); });
   }
 
   // ================= PERCAKAPAN =================
@@ -53,7 +62,7 @@ Modules.wa = (function () {
       cache.conv = d.conversations;
       if (!d.conversations.length) { box.innerHTML = '<div class="empty-state"><div class="empty-title">Belum ada percakapan</div><div class="empty-sub">Pesan pelanggan dari WhatsApp akan muncul di sini.</div></div>'; return; }
       box.innerHTML = d.conversations.map(function (c) {
-        var nm = c.display_name || c.phone_masked;
+        var nm = c.display_name || c.phone_masked || 'Pelanggan';
         return '<button class="wa-item' + (c.phone_e164 === sel ? ' active' : '') + '" data-ph="' + esc(c.phone_e164) + '"><span class="wa-avatar">' + esc(initials(nm)) + '</span>' +
           '<span class="wa-item-main"><span class="wa-item-top"><strong>' + esc(nm) + '</strong><span class="muted">' + esc(hhmm(c.last_at)) + '</span></span>' +
           '<span class="wa-item-bot"><span class="muted wa-snippet">' + (c.last_direction === 'OUT' ? 'Anda: ' : '') + esc(c.last_message) + '</span>' + (c.unread ? '<span class="badge red">' + c.unread + '</span>' : '') + '</span>' +
@@ -172,7 +181,7 @@ Modules.wa = (function () {
         '<div class="card"><div class="wa-kv"><span>Bot</span><span class="badge ' + (m.bot_enabled ? 'green' : 'red') + '">' + (m.bot_enabled ? 'aktif' : 'mati') + '</span></div><div class="wa-kv"><span>Status perangkat WhatsApp</span><span class="badge ' + (m.gateway.state === 'CONNECTED' ? 'green' : (m.gateway.state === 'DISCONNECTED' ? 'red' : '')) + '">' + esc({ CONNECTED: 'terhubung', DISCONNECTED: 'TERPUTUS', NOT_CONFIGURED: 'kunci belum diisi', UNKNOWN: 'belum dapat dicek' }[m.gateway.state] || m.gateway.state) + '</span></div></div>' +
         '<h3>Pesan gagal (' + m.failed.length + ')</h3>' + (m.failed.length ? m.failed.map(function (f) { return '<div class="card row"><div><strong>' + esc(f.phone_masked) + '</strong><div class="muted">' + esc(f.direction) + ' &middot; ' + esc(f.status) + ' &middot; ' + esc(hhmm(f.created_at)) + '</div></div><button class="btn btn-secondary btn-sm" data-replay="' + esc(f.message_id) + '">Putar ulang</button></div>'; }).join('') : '<div class="empty-ok">Tidak ada pesan gagal.</div>') +
         (canEditConfig() ? '<h3>Contoh payload webhook (' + m.captured + ')</h3><div class="muted" style="margin-bottom:8px;">Tangkapan bentuk asli pesan dari penyedia, untuk membuat parser yang tepat.</div><div class="field-row"><button class="btn btn-secondary" id="wa-cap-view">Lihat contoh</button><button class="btn btn-outline" id="wa-cap-clear">Hapus contoh</button></div><div id="wa-cap-box"></div>' : '');
-      Utils.qsa('[data-replay]', body).forEach(function (b) { b.addEventListener('click', function () { b.disabled = true; Api.call('wa.failed.replay', { message_id: b.getAttribute('data-replay') }).then(function () { Utils.toast('Diputar ulang.', 'success'); render(document.getElementById('wa-root').parentNode); }).catch(function (e) { b.disabled = false; Utils.toast(e.message, 'error'); }); }); });
+      Utils.qsa('[data-replay]', body).forEach(function (b) { b.addEventListener('click', function () { b.disabled = true; Api.call('wa.failed.replay', { message_id: b.getAttribute('data-replay') }).then(function () { Utils.toast('Diputar ulang.', 'success'); show(document.getElementById('wa-root').parentNode); }).catch(function (e) { b.disabled = false; Utils.toast(e.message, 'error'); }); }); });
       var cv = body.querySelector('#wa-cap-view'), cc = body.querySelector('#wa-cap-clear');
       if (cv) cv.addEventListener('click', function () { Api.call('wa.capture.list', {}).then(function (d) {
         var box = document.getElementById('wa-cap-box');
@@ -180,7 +189,7 @@ Modules.wa = (function () {
         var cp = document.getElementById('wa-cap-copy');
         if (cp) cp.addEventListener('click', function () { var txt = d.captured.map(function (c) { return c.raw; }).join('\n'); (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { Utils.toast('Disalin.', 'success'); }, function () { Utils.toast('Tidak bisa menyalin otomatis; tekan lama pada teks untuk menyalin.', 'info'); }); });
       }).catch(function (e) { Utils.toast(e.message, 'error'); }); });
-      if (cc) cc.addEventListener('click', function () { if (!window.confirm('Hapus semua contoh payload?')) return; Api.call('wa.capture.clear', {}).then(function (d) { Utils.toast(d.cleared + ' contoh dihapus.', 'success'); render(document.getElementById('wa-root').parentNode); }).catch(function (e) { Utils.toast(e.message, 'error'); }); });
+      if (cc) cc.addEventListener('click', function () { if (!window.confirm('Hapus semua contoh payload?')) return; Api.call('wa.capture.clear', {}).then(function (d) { Utils.toast(d.cleared + ' contoh dihapus.', 'success'); show(document.getElementById('wa-root').parentNode); }).catch(function (e) { Utils.toast(e.message, 'error'); }); });
     });
   }
   return { render: render };

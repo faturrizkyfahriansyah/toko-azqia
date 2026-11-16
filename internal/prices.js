@@ -14,31 +14,37 @@ Modules.prices = (function () {
   function esc(s) { return Utils.escapeHtml(String(s === undefined || s === null ? '' : s)); }
   function usesQty() { return state.rule === 'QTY' || state.rule === 'CUSTOMER_OR_QTY'; }
 
-  function unitHtml(p, u) {
-    return '<div class="pr-unit" data-uid="' + esc(u.product_unit_id) + '"><div class="pr-unit-head"><strong>' + esc(u.unit_name) + '</strong>' +
-      (u.is_base ? ' <span class="badge blue">dasar</span>' : '<span class="muted"> &middot; 1 ' + esc(u.unit_name) + ' = ' + u.conversion_to_base + ' satuan dasar</span>') + '</div>' +
-      '<div class="pr-fields"><label>Eceran (Rp)<input type="number" inputmode="numeric" min="0" data-f="selling_price" value="' + esc(Math.round(u.selling_price)) + '"></label>' +
-      '<label>Grosir (Rp)<input type="number" inputmode="numeric" min="0" data-f="wholesale_price" placeholder="kosong = tidak ada" value="' + (u.wholesale_price === null ? '' : esc(Math.round(u.wholesale_price))) + '"></label>' +
-      (usesQty() ? '<label>Min. jumlah grosir<input type="number" inputmode="numeric" min="0" data-f="wholesale_min_qty" value="' + (u.wholesale_min_qty || '') + '"></label>' : '') +
-      '</div><div class="pr-actions"><span class="pr-msg muted"></span><button type="button" class="btn btn-primary btn-sm" data-save disabled>Simpan</button></div></div>';
+  function cols() { return usesQty() ? 4 : 3; }
+  function tableShell() {
+    return '<div class="table-wrap pr-wrap"><table class="no-card pr-table"><thead><tr><th>Satuan</th><th>Eceran</th><th>Grosir</th>' + (usesQty() ? '<th>Min</th>' : '') + '</tr></thead><tbody id="pr-body"></tbody></table></div>';
   }
-  function productHtml(p) {
-    return '<div class="card pr-card"><div class="pr-head">' + (p.photo_id ? '<img class="mini-thumb" loading="lazy" alt="" src="' + Utils.photoUrl(p.photo_id, 96) + '" onerror="this.remove()">' : '') +
-      '<div><div class="pr-name">' + esc(p.product_name) + '</div><div class="muted">' + esc(p.sku) + '</div></div></div>' + p.units.map(function (u) { return unitHtml(p, u); }).join('') + '</div>';
+  /** Satu produk = baris judul + satu baris per satuan. Kolom langsung bisa diubah; tersimpan otomatis saat selesai mengetik. */
+  function productRows(p) {
+    var head = '<tr class="pr-prod"><td colspan="' + cols() + '"><span class="pr-name">' + esc(p.product_name) + '</span> <span class="muted">' + esc(p.sku) + '</span></td></tr>';
+    return head + p.units.map(function (u) {
+      return '<tr class="pr-unit" data-uid="' + esc(u.product_unit_id) + '"><td class="pr-u"><span class="pr-ok" aria-hidden="true"></span>' + esc(u.unit_name) +
+        (u.is_base ? '' : '<small class="muted">1 = ' + u.conversion_to_base + '</small>') + '</td>' +
+        '<td><input type="number" inputmode="numeric" min="0" data-f="selling_price" value="' + esc(Math.round(u.selling_price)) + '"></td>' +
+        '<td><input type="number" inputmode="numeric" min="0" data-f="wholesale_price" placeholder="-" value="' + (u.wholesale_price === null ? '' : esc(Math.round(u.wholesale_price))) + '"></td>' +
+        (usesQty() ? '<td><input type="number" inputmode="numeric" min="0" data-f="wholesale_min_qty" placeholder="-" value="' + (u.wholesale_min_qty || '') + '"></td>' : '') + '</tr>';
+    }).join('');
   }
   function wire(root) {
-    Utils.qsa('.pr-unit', root).forEach(function (box) {
-      if (box.__wired) return; box.__wired = true;
-      var btn = box.querySelector('[data-save]'), msg = box.querySelector('.pr-msg');
-      Utils.qsa('input', box).forEach(function (i) { i.addEventListener('input', function () { btn.disabled = false; msg.textContent = ''; }); });
-      btn.addEventListener('click', function () {
-        var payload = { product_unit_id: box.getAttribute('data-uid') };
-        Utils.qsa('input[data-f]', box).forEach(function (i) { payload[i.getAttribute('data-f')] = i.value === '' ? '' : Number(i.value); });
-        btn.disabled = true; btn.textContent = 'Menyimpan...';
-        Api.call('price.update', payload).then(function (r) {
-          msg.textContent = 'Tersimpan \u2713'; msg.style.color = 'var(--success)'; btn.textContent = 'Simpan';
-          var g = box.querySelector('[data-f="wholesale_price"]'); g.value = r.unit.wholesale_price === null ? '' : Math.round(r.unit.wholesale_price);
-        }).catch(function (e) { msg.textContent = e.message; msg.style.color = 'var(--danger)'; btn.disabled = false; btn.textContent = 'Simpan'; });
+    Utils.qsa('tr.pr-unit', root).forEach(function (row) {
+      if (row.__wired) return; row.__wired = true;
+      var ok = row.querySelector('.pr-ok');
+      Utils.qsa('input', row).forEach(function (i) {
+        i.addEventListener('input', function () { row.__v = (row.__v || 0) + 1; row.classList.add('dirty'); row.classList.remove('err'); ok.className = 'pr-ok'; });
+        i.addEventListener('change', function () {
+          var payload = { product_unit_id: row.getAttribute('data-uid') };
+          Utils.qsa('input[data-f]', row).forEach(function (x) { payload[x.getAttribute('data-f')] = x.value === '' ? '' : Number(x.value); });
+          ok.className = 'pr-ok busy'; var ver = row.__v || 0;
+          Api.call('price.update', payload).then(function (r) {
+            if ((row.__v || 0) !== ver) return;   // pengguna sudah mengetik lagi: jangan timpa isian; perubahan berikutnya disimpan sendiri
+            row.classList.remove('dirty', 'err'); ok.className = 'pr-ok done';
+            var g = row.querySelector('[data-f="wholesale_price"]'); g.value = r.unit.wholesale_price === null ? '' : Math.round(r.unit.wholesale_price);
+          }).catch(function (e) { row.classList.add('err'); ok.className = 'pr-ok bad'; Utils.toast(e.message, 'error'); });
+        });
       });
     });
   }
@@ -48,10 +54,11 @@ Modules.prices = (function () {
     more.innerHTML = '';
     return Api.call('price.list', { search: state.search, offset: state.offset, limit: 30 }).then(function (d) {
       if (!document.getElementById('pr-list')) return;
-      if (reset) list.innerHTML = '';
+      var ruleChanged = state.rule !== d.rule;
       state.rule = d.rule; state.total = d.total; state.loaded += d.products.length;
       if (!d.products.length && reset) { list.innerHTML = '<div class="empty-state"><div class="empty-title">Produk tidak ditemukan</div></div>'; return; }
-      list.insertAdjacentHTML('beforeend', d.products.map(productHtml).join(''));
+      if (reset || ruleChanged || !document.getElementById('pr-body')) list.innerHTML = tableShell();
+      document.getElementById('pr-body').insertAdjacentHTML('beforeend', d.products.map(productRows).join(''));
       wire(list);
       document.getElementById('pr-count').textContent = state.loaded + ' dari ' + state.total + ' produk';
       if (state.loaded < state.total) { more.innerHTML = '<button type="button" class="btn btn-secondary btn-block" id="pr-more-btn">Muat lebih banyak</button>'; document.getElementById('pr-more-btn').addEventListener('click', function () { state.offset = state.loaded; load(false); }); }

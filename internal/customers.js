@@ -1,39 +1,44 @@
 /**
- * internal/customers.js
+ * internal/customers.js - Pelanggan: daftar ringkas + cari + filter tipe, ketuk untuk ubah.
  */
 window.Modules = window.Modules || {};
 Modules.customers = (function () {
   function render(container) {
     return Api.call('customer.list', {}).then(function (d) {
-      if (!container.isConnected) return; // pengguna sudah pindah halaman sebelum data ini selesai dimuat
-      container.innerHTML = '<div class="row"><h1>Pelanggan</h1><button class="btn btn-primary" id="btn-add">+ Pelanggan</button></div><div id="list"></div>';
-      renderList(d.customers);
-      document.getElementById('btn-add').addEventListener('click', function () { openForm(); });
+      if (!container.isConnected) return;
+      var rows = d.customers || [], type = '';
+      container.innerHTML = '<div class="row"><h1 class="page-title" style="margin:0;">Pelanggan</h1><button class="btn btn-primary" id="btn-add">+ Pelanggan</button></div>' +
+        '<div class="search-box" style="margin-top:12px;"><input id="c-q" type="search" placeholder="Cari nama atau nomor" autocomplete="off"></div>' +
+        '<div class="seg seg-full" id="c-type"><button type="button" class="on" data-t="">Semua</button><button type="button" data-t="REGULAR">Regular</button><button type="button" data-t="GROSIR">Grosir</button></div><div id="list" style="margin-top:12px;"></div>';
+      function draw() {
+        var q = container.querySelector('#c-q').value.trim().toLowerCase();
+        var f = rows.filter(function (c) { return (!type || c.type === type) && (!q || String(c.name).toLowerCase().indexOf(q) !== -1 || String(c.whatsapp || '').indexOf(q) !== -1); });
+        var box = container.querySelector('#list');
+        if (!f.length) { box.innerHTML = '<div class="empty-state"><div class="empty-title">' + (rows.length ? 'Tidak ditemukan' : 'Belum ada pelanggan') + '</div></div>'; return; }
+        box.innerHTML = '<div class="lcard">' + f.map(function (c) {
+          return '<div class="lrow" data-c="' + c.customer_id + '" style="cursor:pointer;"><div class="lr-main"><div class="lr-name">' + Utils.escapeHtml(c.name) + '</div><div class="lr-sub">' + Utils.escapeHtml(c.whatsapp || 'Tanpa nomor') + '</div></div><span class="badge ' + (c.type === 'GROSIR' ? 'gold' : 'grey') + '">' + (c.type === 'GROSIR' ? 'Grosir' : 'Regular') + '</span></div>';
+        }).join('') + '</div>';
+        Utils.qsa('[data-c]', box).forEach(function (r) { r.addEventListener('click', function () { openForm(rows.filter(function (x) { return x.customer_id === r.getAttribute('data-c'); })[0]); }); });
+      }
+      container.querySelector('#c-q').addEventListener('input', Utils.debounce(draw, 140));
+      Utils.qsa('#c-type [data-t]', container).forEach(function (b) { b.addEventListener('click', function () { type = b.getAttribute('data-t'); Utils.qsa('#c-type [data-t]', container).forEach(function (x) { x.classList.toggle('on', x === b); }); draw(); }); });
+      container.querySelector('#btn-add').addEventListener('click', function () { openForm(); });
+      draw();
     });
-  }
-  function renderList(rows) {
-    var box = document.getElementById('list');
-    if (rows.length === 0) { box.innerHTML = '<div class="empty-state">Belum ada pelanggan tercatat.</div>'; return; }
-    box.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Nama</th><th>WhatsApp</th><th>Tipe</th><th></th></tr></thead><tbody>' +
-      rows.map(function (c) { return '<tr><td>' + Utils.escapeHtml(c.name) + '</td><td>' + Utils.escapeHtml(c.whatsapp || '-') + '</td><td>' + Utils.escapeHtml(c.type) + '</td><td>' + (Auth.role() === 'KASIR' || Auth.role() === 'ADMIN_WA' ? '' : '<button class="btn btn-outline btn-sm" data-edit="' + c.customer_id + '">Edit</button>') + '</td></tr>'; }).join('') +
-      '</tbody></table></div>';
-    Utils.qsa('[data-edit]', box).forEach(function (b) { b.addEventListener('click', function () { openForm(rows.filter(function (r) { return r.customer_id === b.getAttribute('data-edit'); })[0]); }); });
   }
   function openForm(c) {
     var isEdit = !!c; c = c || {};
-    var m = Utils.openModal('<h3>' + (isEdit ? 'Edit Pelanggan' : 'Pelanggan Baru') + '</h3><form id="f">' +
+    var m = Utils.openModal('<h3>' + (isEdit ? 'Ubah Pelanggan' : 'Pelanggan Baru') + '</h3><form id="f">' +
       '<div class="field"><label>Nama</label><input name="name" value="' + Utils.escapeHtml(c.name || '') + '" required></div>' +
-      '<div class="field"><label>WhatsApp</label><input name="whatsapp" value="' + Utils.escapeHtml(c.whatsapp || '') + '"></div>' +
+      '<div class="field"><label>WhatsApp</label><input name="whatsapp" inputmode="tel" value="' + Utils.escapeHtml(c.whatsapp || '') + '"></div>' +
       '<div class="field"><label>Alamat</label><input name="address" value="' + Utils.escapeHtml(c.address || '') + '"></div>' +
-      '<div class="field"><label>Tipe</label><select name="type"><option value="REGULAR"' + (c.type === 'REGULAR' ? ' selected' : '') + '>Regular</option><option value="GROSIR"' + (c.type === 'GROSIR' ? ' selected' : '') + '>Grosir</option></select></div>' +
+      '<div class="field"><label>Tipe</label><select name="type"><option value="REGULAR"' + (c.type === 'REGULAR' ? ' selected' : '') + '>Regular</option><option value="GROSIR"' + (c.type === 'GROSIR' ? ' selected' : '') + '>Grosir (harga grosir)</option></select></div>' +
       '<button class="btn btn-primary btn-block" type="submit">Simpan</button></form>');
     m.querySelector('#f').addEventListener('submit', function (e) {
       e.preventDefault();
       var payload = Object.fromEntries(new FormData(e.target).entries());
       if (isEdit) payload.customer_id = c.customer_id;
-      Api.call(isEdit ? 'customer.update' : 'customer.create', payload).then(function () {
-        Utils.toast('Tersimpan.', 'success'); Utils.closeModal(); Router.render();
-      }).catch(function (err) { Utils.toast(err.message, 'error'); });
+      Api.call(isEdit ? 'customer.update' : 'customer.create', payload).then(function () { Utils.toast('Tersimpan.', 'success'); Utils.closeModal(); Router.render(); }).catch(function (err) { Utils.toast(err.message, 'error'); });
     });
   }
   return { render: render };

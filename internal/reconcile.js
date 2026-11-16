@@ -8,7 +8,7 @@ Modules.reconcile = (function () {
   var BADGE = { OK: 'green', MISMATCH: 'red', INFO: 'gold', SKIPPED: '' };
 
   function render(container) {
-    container.innerHTML = '<div class="row"><h1>Rekonsiliasi Data</h1><button class="btn btn-primary" id="rc-run">Jalankan</button></div>' +
+    container.innerHTML = '<div class="row"><h1 class="page-title" style="margin:0;">Rekonsiliasi Data</h1><button class="btn btn-primary" id="rc-run">Jalankan</button></div>' +
       '<p class="muted">Memeriksa kecocokan pesanan, penjualan, pembayaran, stok, kas, dan laporan. Hanya membaca &mdash; tidak mengubah data.</p><div id="rc-body"><div class="empty-state"><div class="empty-sub">Tekan <strong>Jalankan</strong> untuk memeriksa.</div></div></div>';
     var btn = container.querySelector('#rc-run');
     function run() {

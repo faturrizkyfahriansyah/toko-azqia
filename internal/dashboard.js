@@ -54,6 +54,8 @@ Modules.dashboard = {
           (d.piutang_outstanding !== undefined ? tile('Piutang Pelanggan', rp(d.piutang_outstanding), '#/internal/receivables', I.card, n(d.piutang_outstanding) > 0 ? 'info' : '') : '') +
           '</div>') +
 
+        ((Auth.role() === 'PEMILIK' || Auth.role() === 'PENGELOLA') ? '<div class="section-title"><h2>Penjualan</h2></div><div id="dash-charts"><div class="spinner"></div></div>' : '') +
+
         section('Aksi Cepat',
           '<div class="qa-grid">' +
           (Auth.canAccess('#/internal/products') ? qa('Tambah Produk', '#/internal/products', I.plus, '') : '') +
@@ -81,6 +83,8 @@ Modules.dashboard = {
         'Developer by TOKOQIA<br>Developer by Patriski Marionsha' +
         '</div>';
 
+      var chartBox = document.getElementById('dash-charts');
+      if (chartBox) Modules.dashCharts.render(chartBox);
       Api.call('notification.list', {}).then(function (nd) {
         var box = document.getElementById('dash-notif-list');
         if (!box) return;

@@ -6,7 +6,7 @@ Modules.expenses = (function () {
   function render(container) {
     return Api.call('expense.list', {}).then(function (d) {
       if (!container.isConnected) return;
-      container.innerHTML = '<div class="row"><h1>Pengeluaran</h1><button class="btn btn-primary" id="btn-add">+ Pengeluaran</button></div>' +
+      container.innerHTML = '<div class="row"><h1 class="page-title" style="margin:0;">Pengeluaran</h1><button class="btn btn-primary" id="btn-add">+ Pengeluaran</button></div>' +
         '<div class="table-wrap"><table><thead><tr><th>No.</th><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th>Nominal</th></tr></thead><tbody>' +
         d.expenses.map(function (e) {
           return '<tr><td>' + e.expense_number + '</td><td>' + Utils.formatDateOnly(e.date) + '</td><td>' + Utils.escapeHtml(e.category) + '</td><td>' + Utils.escapeHtml(e.description) + '</td><td>' + Utils.formatCurrency(e.amount) + '</td></tr>';

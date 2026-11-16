@@ -7,7 +7,7 @@ Modules.cash = (function () {
     return Api.call('cash.list', {}).then(function (d) {
       if (!container.isConnected) return;
       container.innerHTML =
-        '<h1>Kas</h1>' +
+        '<h1 class=\"page-title\">Kas</h1>' +
         '<div class="kpi"><div class="label">Saldo Kas Saat Ini</div><div class="value">' + Utils.formatCurrency(d.balance) + '</div></div>' +
         '<div class="field-row" style="margin:14px 0;">' +
         '<button class="btn btn-secondary" id="btn-cash-in">+ Kas Masuk</button>' +
