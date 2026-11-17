@@ -29,7 +29,11 @@ window.PrinterManager = (function () {
     localStorage.setItem(PREF_KEY, name);
   }
 
+  /** Di dalam aplikasi TOKOQIA (APK/iPhone) cetak selalu langsung lewat Bluetooth aplikasi - tanpa dialog browser. */
+  function inApp() { return !!(window.PrinterNativeAdapter && window.PrinterNativeAdapter.isAvailable()); }
+
   function adapterFor(id) {
+    if (id === 'native') return window.PrinterNativeAdapter;
     if (id === 'serial') return window.PrinterSerialAdapter;
     if (id === 'thermal') return window.PrinterThermalAdapter;
     if (id === 'localBridge') return window.PrinterLocalBridgeAdapter;
@@ -40,6 +44,7 @@ window.PrinterManager = (function () {
   function detectCapabilities() {
     return window.PrinterLocalBridgeAdapter.checkAvailability().then(function (bridgeUp) {
       return {
+        nativeApp: inApp(),
         webBluetooth: window.PrinterThermalAdapter.isAvailable(),
         webUSB: false, // belum diimplementasikan di TOKOQIA
         webSerial: window.PrinterSerialAdapter.isAvailable(),
@@ -52,6 +57,7 @@ window.PrinterManager = (function () {
   function availableAdapters() {
     return [
       { id: 'auto', label: 'Otomatis (disarankan)', available: true },
+      { id: 'native', label: 'Aplikasi TOKOQIA - Bluetooth langsung', available: inApp() },
       { id: 'serial', label: 'Serial - Bluetooth SPP / USB (setelah Hubungkan Printer)', available: window.PrinterSerialAdapter.isAvailable() },
       { id: 'thermal', label: 'Printer Bluetooth BLE (Web Bluetooth)', available: window.PrinterThermalAdapter.isAvailable() },
       { id: 'localBridge', label: 'TOKOQIA Local Print Bridge', available: window.PrinterLocalBridgeAdapter.isAvailable() },
@@ -70,6 +76,8 @@ window.PrinterManager = (function () {
    */
   function resolveAdapterId() {
     var pref = getPreferredAdapterName();
+    if (inApp()) return Promise.resolve('native'); // di dalam aplikasi: tidak ada jalur browser/serial
+    if (pref === 'native') pref = 'auto'; // preferensi 'native' tersisa dari aplikasi, tetapi ini browser biasa
     if (pref !== 'auto') return Promise.resolve(pref);
     return window.PrinterSerialAdapter.hasGrantedPort().then(function (has) {
       if (has) return 'serial';
@@ -95,10 +103,16 @@ window.PrinterManager = (function () {
     // kalau window.open() baru dipanggil NANTI setelah percobaan Serial/Bluetooth gagal
     // (proses async membuat browser tidak lagi menganggapnya aksi langsung dari klik).
     // Kalau ternyata metode lain (bukan Browser Print) berhasil, jendela ini ditutup lagi.
-    var preOpenedWin = (action === 'print' || action === 'testPrint') ? window.PrinterBrowserAdapter.openBlankWindow() : null;
+    var preOpenedWin = ((action === 'print' || action === 'testPrint') && !inApp()) ? window.PrinterBrowserAdapter.openBlankWindow() : null;
 
     return resolveAdapterId().then(function (id) {
       var job = trackJob(id, action);
+      if (id === 'native') {
+        // Aplikasi: TIDAK ada pengalihan ke browser. Galat diteruskan agar UI menampilkan "Coba Lagi" (transaksi tidak diulang).
+        job.status = 'PRINTING';
+        return window.PrinterNativeAdapter[action].apply(null, args).then(function (r) { job.status = 'SENT'; return r; })
+          .catch(function (err) { job.status = 'FAILED'; job.error = err.message; throw err; });
+      }
       if (id === 'browser') {
         job.status = 'PRINTING';
         return window.PrinterBrowserAdapter[action].apply(null, args.concat([preOpenedWin])).then(function (r) { job.status = 'SUCCESS'; return r; });
@@ -137,7 +151,7 @@ window.PrinterManager = (function () {
     button.innerHTML = '<span class="spinner-inline"></span> Mencetak...';
     return runWithFallback(action, receiptData).then(function () {
       button.disabled = false; button.innerHTML = originalHtml;
-      Utils.toast('Struk berhasil dicetak.', 'success');
+      Utils.toast(inApp() ? 'Struk terkirim ke printer. Periksa kertasnya.' : 'Struk berhasil dicetak.', 'success');
     }).catch(function (err) {
       button.disabled = false; button.innerHTML = originalHtml;
       showPrintFailureBanner(button, receiptData, action, err);
@@ -163,6 +177,7 @@ window.PrinterManager = (function () {
 
   /** Status koneksi apa adanya untuk ditampilkan di UI Pengaturan - TIDAK pernah "Connected" palsu. */
   function statusLabel(id) {
+    if (id === 'native') return inApp() ? 'Aktif di aplikasi ini (Bluetooth langsung, tanpa dialog browser)' : 'Hanya ada di aplikasi TOKOQIA (APK/iPhone)';
     if (id === 'auto') return 'Serial jika printer sudah dihubungkan, lalu Local Bridge jika aktif, lalu Browser';
     if (id === 'browser') return 'Siap (selalu tersedia)';
     var a = adapterFor(id);

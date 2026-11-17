@@ -34,6 +34,7 @@
 <script defer src="js/printer/receiptBuilder.js"></script>
 <script defer src="js/printer/browserAdapter.js"></script>
 <script defer src="js/printer/thermalAdapter.js"></script>
+<script defer src="js/printer/nativeAdapter.js"></script>
 <script defer src="js/printer/serialAdapter.js"></script>
 <script defer src="js/printer/localBridgeAdapter.js"></script>
 <script defer src="js/printer/printerInterface.js"></script>
@@ -118,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   Router.render();
 
-  if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) { // di aplikasi (APK/iPhone) berkas sudah ada di dalam aplikasi
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 });

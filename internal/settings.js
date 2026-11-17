@@ -175,7 +175,74 @@ Modules.settings = (function () {
   }
 
   // ---------- Printer ----------
+  /** Di dalam aplikasi TOKOQIA (APK/iPhone): pilih printer Bluetooth langsung. Tidak ada jalur browser. */
+  function renderNativePrinter(body) {
+    var NA = window.PrinterNativeAdapter, st = NA.status(), sel = st.selected, rs = window.ReceiptBuilder.getReceiptSettings();
+    var hasSpp = st.methods.indexOf('spp') >= 0;
+    var mLabel = { ble: 'Bluetooth LE', spp: 'Bluetooth Classic (SPP)' };
+    body.innerHTML =
+      '<div class="card pr-status"><span class="pr-dot ' + (sel ? 'ok' : 'warn') + '"></span>' +
+      '<div class="pr-title">' + (sel ? Utils.escapeHtml(sel.name) : 'Belum ada printer') + '</div>' +
+      '<p class="hint" style="margin:4px 0 14px;">' + (sel ? mLabel[sel.method] + ' &middot; tersambung otomatis saat mencetak. Pastikan printer menyala.' : 'Pilih printer di bawah. Struk dikirim langsung ke printer, tanpa dialog browser.') + '</p>' +
+      '<div class="field-row"><button class="btn btn-primary btn-block" id="np-test"' + (sel ? '' : ' disabled') + '>Tes Cetak</button>' +
+      (sel ? '<button class="btn btn-outline btn-block" id="np-forget">Lupakan</button>' : '') + '</div>' +
+      '<div id="np-status" class="muted" style="margin-top:8px;"></div></div>' +
+      '<div class="card"><div class="set-h">Pilih printer</div>' +
+      (hasSpp ? '<button class="btn btn-secondary btn-block" id="np-spp">Printer yang sudah dipasangkan (Bluetooth Classic)</button><div id="np-spp-list" style="margin:8px 0;"></div>' : '') +
+      '<button class="btn ' + (hasSpp ? 'btn-outline' : 'btn-secondary') + ' btn-block" id="np-ble" style="margin-top:8px;">Cari printer Bluetooth LE</button>' +
+      '<p class="hint" style="margin-bottom:0;">' + (hasSpp ? 'Android: pasangkan printer dulu di Pengaturan Bluetooth HP (PIN 0000), lalu pilih di daftar pertama. Bila printer Anda BLE, pakai tombol kedua.' : 'iPhone hanya bisa tersambung ke printer BLE atau printer berlogo MFi. Printer Bluetooth Classic biasa tidak akan muncul.') + '</p></div>' +
+      '<details class="collapsible"><summary>Lanjutan (teknis)</summary><div class="collapsible-body">' +
+      '<div class="card"><div class="set-h">Format teks ke printer</div>' +
+      segRow('Akhir baris', [{ value: 'CRLF', label: 'CRLF' }, { value: 'LF', label: 'LF' }], rs.lineEnding, 'lineEnding') +
+      '<div class="field"><label>Lebar karakter - font normal</label><input type="number" id="rs-charwidth" value="' + rs.charWidth + '" min="16" max="64"></div>' +
+      '<div class="field"><label>Lebar karakter - font kecil</label><input type="number" id="rs-condensedwidth" value="' + rs.condensedWidth + '" min="16" max="80"></div>' +
+      '<div class="field"><label>Baris kosong di akhir struk</label><input type="number" id="rs-feedlines" value="' + rs.feedLines + '" min="0" max="10"></div>' +
+      '<div class="field"><label>Ukuran paket Bluetooth LE (byte)</label><input type="number" id="np-chunk" value="' + NA.chunkSize() + '" min="20" max="512"><div class="hint">Bawaan 20 paling aman. Naikkan (mis. 100) hanya bila cetak terlalu lambat dan printer tetap normal.</div></div>' +
+      '<button class="btn btn-outline btn-sm" id="np-save">Simpan</button></div></div></details>';
+
+    var again = function () { renderNativePrinter(body); };
+    var statusEl = body.querySelector('#np-status');
+    Utils.qsa('[data-rs]', body).forEach(function (b) { b.addEventListener('click', function () { var p = {}; p[b.getAttribute('data-rs')] = b.getAttribute('data-rs-value'); window.ReceiptBuilder.setReceiptSettings(p); again(); }); });
+    body.querySelector('#np-save').addEventListener('click', function () {
+      window.ReceiptBuilder.setReceiptSettings({
+        charWidth: Math.max(16, Math.min(64, Number(body.querySelector('#rs-charwidth').value) || 32)),
+        condensedWidth: Math.max(16, Math.min(80, Number(body.querySelector('#rs-condensedwidth').value) || 42)),
+        feedLines: Math.max(0, Math.min(10, Number(body.querySelector('#rs-feedlines').value) || 4))
+      });
+      NA.setChunkSize(Math.max(20, Math.min(512, Number(body.querySelector('#np-chunk').value) || 20)));
+      Utils.toast('Disimpan.', 'success');
+    });
+    var bleBtn = body.querySelector('#np-ble');
+    bleBtn.addEventListener('click', function () {
+      bleBtn.disabled = true; statusEl.textContent = '';
+      NA.pickBle().then(function () { Utils.toast('Printer dipilih.', 'success'); again(); })
+        .catch(function (err) { statusEl.innerHTML = '<span class="badge red">Gagal</span> ' + Utils.escapeHtml(err.message); bleBtn.disabled = false; });
+    });
+    var sppBtn = body.querySelector('#np-spp');
+    if (sppBtn) sppBtn.addEventListener('click', function () {
+      var list = body.querySelector('#np-spp-list'); list.innerHTML = '<span class="spinner-inline"></span> Memuat...'; statusEl.textContent = '';
+      NA.listBonded().then(function (devs) {
+        if (!devs || !devs.length) { list.innerHTML = '<div class="muted">Belum ada perangkat Bluetooth yang dipasangkan. Pasangkan printer di Pengaturan Bluetooth HP (PIN 0000), lalu coba lagi.</div>'; return; }
+        list.innerHTML = devs.map(function (d, i) {
+          return '<div class="row lrow" style="padding:8px 0;"><div><strong>' + Utils.escapeHtml(d.name || d.address) + '</strong><div class="muted">' + Utils.escapeHtml(d.address) + '</div></div><button class="btn btn-primary btn-sm" data-spp="' + i + '">Pilih</button></div>';
+        }).join('');
+        Utils.qsa('[data-spp]', list).forEach(function (b) { b.addEventListener('click', function () { NA.selectSpp(devs[Number(b.getAttribute('data-spp'))]); Utils.toast('Printer dipilih.', 'success'); again(); }); });
+      }).catch(function (err) { list.innerHTML = ''; statusEl.innerHTML = '<span class="badge red">Gagal</span> ' + Utils.escapeHtml(err.message); });
+    });
+    var forget = body.querySelector('#np-forget');
+    if (forget) forget.addEventListener('click', function () { NA.disconnect().then(function () { NA.setSelection(null); Utils.toast('Printer dilupakan.', 'success'); again(); }); });
+    var testBtn = body.querySelector('#np-test');
+    testBtn.addEventListener('click', function () {
+      testBtn.disabled = true; testBtn.innerHTML = '<span class="spinner-inline"></span> Mengirim...'; statusEl.textContent = '';
+      window.PrinterManager.testPrint().then(function () { statusEl.innerHTML = '<span class="badge green">Terkirim</span> Periksa kertas di printer. Bila tidak keluar, cek printer menyala dan kertas ada.'; })
+        .catch(function (err) { statusEl.innerHTML = '<span class="badge red">Gagal</span> ' + Utils.escapeHtml(err.message); })
+        .then(function () { testBtn.disabled = false; testBtn.textContent = 'Tes Cetak'; });
+    });
+    return Promise.resolve();
+  }
+
   function renderPrinter(body) {
+    if (window.PrinterNativeAdapter && window.PrinterNativeAdapter.isAvailable()) return renderNativePrinter(body);
     var adapters = window.PrinterManager.availableAdapters();
     var current = window.PrinterManager.getPreferredAdapterName();
     var rs = window.ReceiptBuilder.getReceiptSettings();
