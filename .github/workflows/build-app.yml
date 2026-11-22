@@ -1,0 +1,73 @@
+# Membangun APLIKASI TOKOQIA (APK Android; cek-kompilasi iPhone) dari website yang sama + cetak Bluetooth langsung.
+# BELUM PERNAH DIJALANKAN (dibuat tanpa akses ke GitHub/Android SDK). Bila ada langkah merah, kirim log langkah itu.
+# Cara pakai: GitHub -> tab Actions -> "Bangun Aplikasi" -> Run workflow -> pilih kasir/shop -> tunggu -> unduh APK dari bagian Artifacts.
+name: Bangun Aplikasi
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Aplikasi yang dibangun'
+        type: choice
+        default: kasir
+        options: [kasir, shop]
+env:
+  APP: ${{ inputs.app || 'kasir' }}
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: 1. Pasang paket (npm install)
+        run: npm install --no-audit --no-fund
+      - name: 2. Siapkan isi aplikasi dari website
+        run: node scripts/prepare-www.js
+      - name: 3. Bundel jembatan native
+        run: npm run bundle
+      - name: 4. Buat proyek Android
+        run: npx cap add android
+      - name: 5. Pasang izin Bluetooth/kamera + plugin SPP
+        run: node scripts/patch-android.js
+      - name: 6. Sinkronkan
+        run: npx cap sync android
+      - name: 7. Bangun APK
+        working-directory: app-native/android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tokoqia-${{ env.APP }}-android-apk
+          path: app-native/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+  ios-cek-kompilasi:
+    # Hanya memastikan kode iPhone dapat dikompilasi (tanpa tanda tangan). TIDAK menghasilkan aplikasi yang bisa dipasang di iPhone:
+    # itu butuh akun Apple Developer + sertifikat (lihat PANDUAN_APLIKASI.md). Kegagalan di sini tidak menghentikan APK Android.
+    runs-on: macos-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: app-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/prepare-www.js
+      - run: npm run bundle
+      - run: npx cap add ios
+      - run: node scripts/patch-ios.js
+      - run: npx cap sync ios
+      - name: Kompilasi (simulator, tanpa tanda tangan)
+        run: |
+          cd ios/App
+          if [ -d App.xcworkspace ]; then TARGET="-workspace App.xcworkspace"; else TARGET="-project App.xcodeproj"; fi
+          xcodebuild $TARGET -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
