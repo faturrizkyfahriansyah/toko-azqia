@@ -65,14 +65,26 @@ window.Utils = (function () {
   }
 
   /** Kecilkan foto di perangkat (sisi terpanjang <= maxSide, JPEG) sebelum diunggah: cepat, hemat kuota & ruang Drive. -> {mime, data(base64), dataUrl, bytes} */
-  function resizeImage(file, maxSide, quality) {
-    maxSide = maxSide || 800; quality = quality || 0.8;
+  /**
+   * Kecilkan foto. opts.square: foto dirapikan jadi KOTAK (rasio 1:1) berlatar putih, produk utuh di tengah dengan jarak tepi,
+   * dan kecerahan/kontras diratakan ringan agar seragam di katalog. Tidak mengubah isi/tulisan kemasan (tanpa AI).
+   */
+  function resizeImage(file, maxSide, quality, opts) {
+    maxSide = maxSide || 800; quality = quality || 0.8; opts = opts || {};
     return new Promise(function (resolve, reject) {
       var img = new Image(), url = URL.createObjectURL(file);
       img.onload = function () {
         var w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, maxSide / Math.max(w, h));
-        var cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
-        var c2 = cv.getContext('2d'); c2.fillStyle = '#fff'; c2.fillRect(0, 0, cv.width, cv.height); c2.drawImage(img, 0, 0, cv.width, cv.height);
+        var cv = document.createElement('canvas'), c2;
+        if (opts.square) {
+          var side = Math.max(1, Math.round(Math.min(maxSide, Math.max(w, h)))), pad = Math.round(side * 0.04), fit = Math.min((side - 2 * pad) / w, (side - 2 * pad) / h);
+          var dw = Math.max(1, Math.round(w * fit)), dh = Math.max(1, Math.round(h * fit)), dx = Math.round((side - dw) / 2), dy = Math.round((side - dh) / 2);
+          cv.width = side; cv.height = side; c2 = cv.getContext('2d'); c2.fillStyle = '#fff'; c2.fillRect(0, 0, side, side); c2.drawImage(img, dx, dy, dw, dh);
+          try { autoLevels(c2, dx, dy, dw, dh); } catch (e) { /* tanpa perataan bila gagal */ }
+        } else {
+          cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+          c2 = cv.getContext('2d'); c2.fillStyle = '#fff'; c2.fillRect(0, 0, cv.width, cv.height); c2.drawImage(img, 0, 0, cv.width, cv.height);
+        }
         var q = quality, dataUrl = cv.toDataURL('image/jpeg', q);
         while (dataUrl.length * 0.75 > 450 * 1024 && q > 0.35) { q -= 0.1; dataUrl = cv.toDataURL('image/jpeg', q); }
         URL.revokeObjectURL(url);
@@ -81,6 +93,19 @@ window.Utils = (function () {
       img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Berkas bukan gambar yang dapat dibaca.')); };
       img.src = url;
     });
+  }
+  /** Perataan ringan (hanya area foto): bentangkan persentil 1-99 kecerahan; batas penguatan kecil agar tidak berlebihan. */
+  function autoLevels(ctx, x, y, w, h) {
+    var d = ctx.getImageData(x, y, w, h), px = d.data, hist = new Array(256).fill(0), n = w * h, i;
+    for (i = 0; i < px.length; i += 4) hist[Math.round(0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2])]++;
+    var acc = 0, lo = 0, hi = 255;
+    for (i = 0; i < 256; i++) { acc += hist[i]; if (acc >= n * 0.01) { lo = i; break; } }
+    acc = 0; for (i = 255; i >= 0; i--) { acc += hist[i]; if (acc >= n * 0.01) { hi = i; break; } }
+    if (hi - lo < 40) return;
+    lo = Math.min(lo, 30); hi = Math.max(hi, 200);
+    var gain = Math.min(1.35, 255 / (hi - lo));
+    for (i = 0; i < px.length; i += 4) for (var c = 0; c < 3; c++) { var v = (px[i + c] - lo) * gain; px[i + c] = v < 0 ? 0 : v > 255 ? 255 : v; }
+    ctx.putImageData(d, x, y);
   }
 
   /** Nomor Indonesia -> 0856-9476-5370 (angka 0 di depan yang hilang karena disimpan sebagai angka dipulihkan). */
@@ -95,6 +120,20 @@ window.Utils = (function () {
   }
 
   /** Foto produk di Google Drive (berkas dibagikan "siapa pun dengan tautan"). */
+  /**
+   * Alamat gambar QRIS yang bisa dimuat. Tautan lama "drive.google.com/uc?export=view" sering DIBLOKIR di browser/aplikasi;
+   * tautan "thumbnail" (dipakai foto produk) berhasil. Dipakai untuk QRIS di Pengaturan, Kasir, dan checkout toko online.
+   */
+  function qrisSrc(url, w) {
+    url = String(url || ''); var m = /[?&]id=([^&]+)/.exec(url) || /\/d\/([^\/?]+)/.exec(url);
+    return m && /drive\.google\.com|googleusercontent/.test(url) ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w' + (w || 1000) : url;
+  }
+  /** Pasang gambar QRIS ke <img>: coba alamat thumbnail, lalu alamat asli; onFail bila keduanya gagal. */
+  function bindQris(img, orig, onFail) {
+    var tried = false;
+    img.addEventListener('error', function () { if (!tried && orig && img.getAttribute('src') !== orig) { tried = true; img.src = orig; } else if (onFail) onFail(); });
+    img.src = qrisSrc(orig);
+  }
   function photoUrl(id, w) { return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + (w || 300); }
 
   /**
@@ -175,7 +214,7 @@ window.Utils = (function () {
   return {
     formatCurrency: formatCurrency, formatDate: formatDate, formatDateOnly: formatDateOnly,
     escapeHtml: escapeHtml, qs: qs, qsa: qsa, el: el, debounce: debounce,
-    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading, photoUrl: photoUrl, formatPhoneId: formatPhoneId, waLink: waLink, cardifyTables: cardifyTables, resizeImage: resizeImage,
+    toast: toast, openModal: openModal, closeModal: closeModal, showLoading: showLoading, photoUrl: photoUrl, qrisSrc: qrisSrc, bindQris: bindQris, formatPhoneId: formatPhoneId, waLink: waLink, cardifyTables: cardifyTables, resizeImage: resizeImage,
     orderStatusInfo: orderStatusInfo, orderStatusBadge: orderStatusBadge
   };
 })();

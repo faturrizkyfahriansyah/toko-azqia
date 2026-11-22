@@ -153,7 +153,7 @@ window.Layout = (function () {
   function renderShell(appRoot, area, path) {
     if (area === 'internal' && path === '/internal/login') {
       appRoot.className = '';
-      appRoot.innerHTML = '<div class="topbar">' + brandHtml() + '</div><div id="view-container" class="content" style="max-width:400px;"></div>';
+      appRoot.innerHTML = '<div class="topbar on-brand"><div class="brand brand-internal" aria-label="TOKO AZQIA"><img class="brand-logo" src="' + LOGO_WHITE + '" alt="TOKOQIA" onerror="this.style.display=\'none\'"><span class="brand-text"><span class="brand-name">TOKO AZQIA</span><span class="brand-tagline">Melayani Kebutuhan, Membangun Kepercayaan.</span></span></div></div><div id="view-container" class="content" style="max-width:400px;"></div>';
       return;
     }
 

@@ -168,6 +168,9 @@ Modules.products = (function () {
       (isEdit ? '<p class="muted">SKU: <strong>' + Utils.escapeHtml(p.sku) + '</strong> (dibuat otomatis, tidak bisa diubah)</p>' : '') +
       '<form id="product-form" novalidate>' +
       '<div class="field"><label>Nama <span style="color:var(--red);">*</span></label><input name="product_name" value="' + Utils.escapeHtml(p.product_name || '') + '" placeholder="Contoh: Tahu Bulat" required></div>' +
+      '<div class="field"><label>Barcode</label><div class="bc-row"><input name="barcode" value="' + Utils.escapeHtml(p.barcode || '') + '" placeholder="Scan atau ketik; kosong = dibuat otomatis"><button type="button" class="btn btn-secondary icon-sq" id="bc-scan" aria-label="Scan barcode dengan kamera">' + Layout.ICONS.camera + '</button></div>' +
+      '<div id="bc-area-wrap" hidden><div id="bc-area" style="width:100%;min-height:200px;"></div><button type="button" class="btn btn-outline btn-block" id="bc-cancel" style="margin-top:8px;">Batal scan</button></div></div>' +
+
       '<div class="field photo-field"><label>Foto produk</label><div class="photo-row"><div class="photo-prev" id="photo-prev"></div><div class="photo-ctl">' +
       '<input type="file" id="photo-file" accept="image/*" hidden><button type="button" class="btn btn-outline btn-sm" id="photo-pick">Pilih / ambil foto</button> <button type="button" class="btn btn-ghost btn-sm" id="photo-remove" style="display:none;">Hapus foto</button>' +
       '<div class="hint" id="photo-hint">Disimpan di Google Drive toko. Dikecilkan otomatis.</div></div></div></div>' +
@@ -179,7 +182,6 @@ Modules.products = (function () {
 
       '<div class="field-row"><div class="field"><label>Kategori <a href="#" id="btn-new-category" style="font-weight:400;">+ baru</a></label><select name="category_id">' + optionsHtml(categories, 'category_id', 'category_name', defaultCat) + '</select></div>' +
       '<div class="field"><label>Satuan Utama</label><select name="unit_id">' + optionsHtml(units, 'unit_id', 'unit_name', defaultUnit) + '</select></div></div>' +
-      '<div class="field"><label>Barcode</label><input name="barcode" value="' + Utils.escapeHtml(p.barcode || '') + '" placeholder="Scan/ketik barcode pabrik, kosongkan = dibuat otomatis"></div>' +
 
       switchRow('sw-stock', 'Manajemen Stok', 'Lacak jumlah stok produk ini. Matikan jika cukup jual langsung.', managed) +
       '<div class="sub-panel" id="stock-fields" style="' + (managed ? '' : 'display:none;') + '">' +
@@ -227,11 +229,37 @@ Modules.products = (function () {
       rm.style.display = (dataUrl || photoId) ? '' : 'none';
     }
     drawPhoto();
+    // Foto -> saran Nama & Kategori (AI). Hanya mengisi kolom yang MASIH KOSONG/bawaan; pengguna tetap memeriksa lalu menyimpan.
+    function suggestFromPhoto(r) {
+      var nameInput = m.querySelector('[name=product_name]'), catSel = m.querySelector('[name=category_id]'), hint = m.querySelector('#photo-hint');
+      if (nameInput.value.trim()) return;
+      hint.textContent = 'Membaca nama produk dari foto...';
+      Api.call('product.ai.describe', { mime: r.mime, data: r.data }).then(function (res) {
+        if (!res || !res.found) { hint.textContent = 'Nama tidak terbaca dari foto. Isi manual ya.'; return; }
+        if (!nameInput.value.trim()) nameInput.value = res.name;
+        var catNote = '';
+        if (res.category_id && catSel && catSel.value === String(defaultCat)) { catSel.value = res.category_id; catNote = ' Kategori: ' + res.category_name + '.'; }
+        hint.textContent = 'Saran dari foto:' + catNote + ' Periksa dulu sebelum menyimpan.';
+        nameInput.classList.add('ai-filled'); nameInput.addEventListener('input', function () { nameInput.classList.remove('ai-filled'); }, { once: true });
+      }).catch(function (err) { hint.textContent = (err && err.message) || 'Nama tidak terbaca dari foto. Isi manual ya.'; });
+    }
+    // Scan barcode di dalam form (tanpa membuka jendela lain agar form tidak tertutup).
+    var scanRef = null, bcWrap = m.querySelector('#bc-area-wrap');
+    function stopBcScan() { if (scanRef) { try { scanRef.stop(); } catch (e) {} scanRef = null; } bcWrap.hidden = true; }
+    m.querySelector('#bc-scan').addEventListener('click', function () {
+      if (!bcWrap.hidden) { stopBcScan(); return; }
+      bcWrap.hidden = false;
+      window.BarcodeTools.startCameraScan('bc-area', function (text) {
+        scanRef = null; bcWrap.hidden = true; m.querySelector('[name=barcode]').value = text; Utils.toast('Barcode terisi: ' + text, 'success');
+      }, function (err) { bcWrap.hidden = true; Utils.toast('Kamera tidak dapat diakses: ' + ((err && err.message) || err), 'error'); }).then(function (ref) { scanRef = ref; if (bcWrap.hidden) stopBcScan(); }).catch(function () {});
+    });
+    m.querySelector('#bc-cancel').addEventListener('click', stopBcScan);
     m.querySelector('#photo-pick').addEventListener('click', function () { m.querySelector('#photo-file').click(); });
     m.querySelector('#photo-file').addEventListener('change', function (e) {
       var file = e.target.files[0]; if (!file) return;
       var hint = m.querySelector('#photo-hint'); hint.textContent = 'Memproses foto...';
-      Utils.resizeImage(file, 800, 0.8).then(function (r) {
+      Utils.resizeImage(file, 800, 0.8, { square: true }).then(function (r) {
+        if (!isEdit) suggestFromPhoto(r);
         if (isEdit) {
           hint.textContent = 'Mengunggah ke Drive...';
           return Api.call('product.photo.upload', { product_id: p.product_id, mime: r.mime, data: r.data }).then(function (res) { photoId = res.photo_id; p.photo_id = photoId; drawPhoto(r.dataUrl); hint.textContent = 'Foto tersimpan (' + Math.round(r.bytes / 1024) + ' KB).'; });

@@ -129,7 +129,7 @@ Modules.settings = (function () {
       var current = (d.settings && d.settings.qris_image_url) || '';
       body.innerHTML =
         '<div class="card"><div class="set-h">QRIS</div>' +
-        '<div class="qris-box">' + (current ? '<img src="' + current + '" alt="QRIS toko" id="qris-img">' : '') + '<div class="qris-empty"' + (current ? ' hidden' : '') + '>Belum ada QRIS</div></div>' +
+        '<div class="qris-box">' + (current ? '<img alt="QRIS toko" id="qris-img">' : '') + '<div class="qris-empty"' + (current ? ' hidden' : '') + '>Belum ada QRIS</div></div>' +
         '<input type="file" id="qris-file" accept="image/png,image/jpeg" hidden>' +
         '<button class="btn btn-primary btn-block" id="qris-pick">' + (current ? 'Ganti QRIS' : 'Unggah QRIS') + '</button>' +
         '<p class="hint">PNG atau JPG, maksimal 3 MB. Tampil di Kasir (metode QRIS) dan checkout toko online.</p></div>' +
@@ -140,7 +140,7 @@ Modules.settings = (function () {
             '<label class="switch"><input type="checkbox" data-bank="' + b.bank_account_id + '"' + (active ? ' checked' : '') + '><span class="slider"></span></label></div>';
         }).join('') : '<div class="empty-sub" style="padding:14px 0;">Belum ada rekening. Tambahkan agar pembeli bisa transfer.</div>') + '</div>';
       var img = body.querySelector('#qris-img');
-      if (img) img.addEventListener('error', function () { img.remove(); var e = body.querySelector('.qris-empty'); e.hidden = false; e.textContent = 'QRIS tidak dapat dimuat. Unggah ulang.'; });
+      if (img) Utils.bindQris(img, current, function () { img.remove(); var e = body.querySelector('.qris-empty'); e.hidden = false; e.textContent = 'QRIS tidak dapat dimuat. Periksa koneksi, atau unggah ulang.'; });
       var file = body.querySelector('#qris-file');
       body.querySelector('#qris-pick').addEventListener('click', function () { file.click(); });
       file.addEventListener('change', function () {

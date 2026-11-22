@@ -8,7 +8,6 @@ Modules.login = {
     var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
     container.innerHTML =
       '<div class="card login-card">' +
-      '<img src="assets/icons/tokoqia-app-icon-192.png" alt="TOKOQIA" class="login-logo">' +
       '<h1 class="login-title">Masuk</h1>' +
       '<form id="login-form">' +
       '<div class="field"><label>Username</label><input name="username" required autocomplete="username" autocapitalize="none"></div>' +

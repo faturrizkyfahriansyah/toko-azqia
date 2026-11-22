@@ -13,7 +13,7 @@ Modules.payment = (function () {
       '<div class="row"><span>Total Bayar</span><strong style="color:var(--red);">' + Utils.formatCurrency(order.grand_total) + '</strong></div></div>';
 
     if (order.payment && order.payment.qris_image_url) {
-      html += '<div class="card" style="text-align:center;"><img src="' + order.payment.qris_image_url + '" alt="QRIS" style="max-width:260px;width:100%;"><p class="muted">' + Utils.escapeHtml(order.payment.instructions || '') + '</p></div>';
+      html += '<div class="card" style="text-align:center;"><img id="qris-pay" alt="QRIS" style="max-width:260px;width:100%;"><p class="muted">' + Utils.escapeHtml(order.payment.instructions || '') + '</p></div>';
     } else if (order.payment_method === 'TUNAI') {
       html += '<div class="card"><p>Silakan bayar <strong>tunai saat mengambil pesanan</strong> di toko. Pesanan akan disiapkan oleh staf.</p></div>';
     } else if (order.payment_method === 'COD') {
@@ -24,6 +24,8 @@ Modules.payment = (function () {
     html += (order.payment_method === 'TUNAI' || order.payment_method === 'COD' ? '' : '<a href="#/shop/order" class="btn btn-primary btn-block">Saya Sudah Membayar</a>') +
       '<a href="#/shop/orders" class="btn btn-outline btn-block" style="margin-top:8px;">Lacak Pesanan Ini</a>';
     container.innerHTML = html;
+    var qimg = container.querySelector('#qris-pay');
+    if (qimg) Utils.bindQris(qimg, order.payment.qris_image_url, function () { qimg.replaceWith(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'QRIS tidak dapat dimuat. Hubungi toko atau pilih Transfer.' })); });
     return Promise.resolve();
   }
   return { render: render };

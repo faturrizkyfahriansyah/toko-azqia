@@ -307,14 +307,15 @@ Modules.pos = (function () {
       '<h3>Pembayaran</h3>' + (Offline.isOnline() ? '' : '<div class="hint" style="color:var(--warning);font-weight:700;">Mode offline: transaksi disimpan di perangkat dan dikirim saat online.</div>') +
       '<div class="row"><span>Total Tagihan</span><strong style="font-size:1.3rem;">' + Utils.formatCurrency(total) + '</strong></div>' +
       '<div class="field" style="margin-top:14px;"><label>Metode</label><select id="pay-method"><option value="CASH">Tunai</option><option value="QRIS">QRIS</option><option value="TRANSFER">Transfer</option><option value="HUTANG">Hutang</option></select></div>' +
-      '<div class="field" id="pay-cash-field"><label>Uang Diterima</label><input id="pay-received" type="number" min="0" inputmode="numeric"></div>' +
+      '<div class="field" id="pay-cash-field"><label>Uang Diterima</label><input id="pay-received" type="number" min="0" inputmode="numeric" value="' + total + '"><div class="quick-cash" id="pay-quick"></div></div>' +
       '<div class="row" id="pay-change-row"><span>Kembalian</span><strong id="pay-change">Rp 0</strong></div>' +
       '<div class="field" id="pay-customer-field" style="display:none;"><label>Pelanggan (wajib untuk Hutang)</label><select id="pay-customer"><option value="">Pilih pelanggan</option>' + customers.map(function (c) { return '<option value="' + c.customer_id + '"' + (c.customer_id === customerId ? ' selected' : '') + '>' + Utils.escapeHtml(c.name) + '</option>'; }).join('') + '</select></div>' +
       '<div id="pay-qris-preview"></div>' +
       '<a href="#" id="pay-split-toggle" style="display:block;margin:8px 0;font-size:0.85rem;">+ Split pembayaran (Tunai + QRIS, dsb)</a>' +
       '<div id="pay-split-area" style="display:none;"><div class="field-row"><div class="field"><label>Metode ke-2</label><select id="pay-method-2"><option value="CASH">Tunai</option><option value="QRIS" selected>QRIS</option><option value="TRANSFER">Transfer</option></select></div>' +
       '<div class="field"><label>Nominal</label><input id="pay-amount-2" type="number" min="0"></div></div><p class="hint">Nominal Metode 1 dihitung otomatis = Total - Nominal Metode 2.</p></div>' +
-      '<button class="btn btn-primary btn-block" id="pay-submit" style="margin-top:14px;">Selesaikan Transaksi</button>');
+      '<div class="pay-confirm" id="pay-confirm" hidden><p id="pay-confirm-text"></p><div class="field-row"><button type="button" class="btn btn-outline" id="pay-cancel">Batal</button><button type="button" class="btn btn-primary" id="pay-ok">OK</button></div></div>' +
+      '<button class="btn btn-primary btn-block" id="pay-submit" style="margin-top:14px;">Konfirmasi Pembayaran</button>');
     var methodSel = m.querySelector('#pay-method'), receivedInput = m.querySelector('#pay-received'), splitToggle = m.querySelector('#pay-split-toggle'), splitArea = m.querySelector('#pay-split-area'), splitOn = false;
     splitToggle.addEventListener('click', function (e) { e.preventDefault(); splitOn = !splitOn; splitArea.style.display = splitOn ? 'block' : 'none'; splitToggle.textContent = splitOn ? '- Batalkan split pembayaran' : '+ Split pembayaran (Tunai + QRIS, dsb)'; if (splitOn) { methodSel.value = 'CASH'; updateChange(); } });
     function updateChange() {
@@ -325,13 +326,50 @@ Modules.pos = (function () {
       m.querySelector('#pay-change-row').style.display = (method === 'CASH' && !splitOn) ? 'flex' : 'none';
       m.querySelector('#pay-customer-field').style.display = isHutang ? 'block' : 'none';
       m.querySelector('#pay-change').textContent = Utils.formatCurrency(Math.max(0, Number(receivedInput.value || 0) - total));
-      if (method === 'QRIS' && !splitOn && Offline.isOnline()) {
-        Api.call('public.qrisInfo', {}).then(function (q) { m.querySelector('#pay-qris-preview').innerHTML = '<img src="' + q.qris_image_url + '" style="max-width:180px;display:block;margin:10px auto;">'; }).catch(function () {});
-      } else m.querySelector('#pay-qris-preview').innerHTML = '';
+      var showQris = (method === 'QRIS' && !splitOn) || (splitOn && method !== 'HUTANG' && m.querySelector('#pay-method-2').value === 'QRIS');
+      var qbox = m.querySelector('#pay-qris-preview');
+      if (showQris && Offline.isOnline()) {
+        if (!qbox.firstChild) {
+          qbox.innerHTML = '<p class="hint" style="text-align:center;">Memuat QRIS...</p>';
+          Api.call('public.qrisInfo', {}).then(function (q) {
+            var im = document.createElement('img'); im.alt = 'QRIS toko'; im.className = 'pay-qris-img'; qbox.innerHTML = ''; qbox.appendChild(im);
+            Utils.bindQris(im, q.qris_image_url, function () { qbox.innerHTML = '<p class="hint" style="text-align:center;color:var(--danger);">QRIS tidak dapat dimuat. Periksa koneksi, atau unggah ulang di Pengaturan &gt; Pembayaran.</p>'; });
+          }).catch(function (e) { qbox.innerHTML = '<p class="hint" style="text-align:center;color:var(--danger);">' + Utils.escapeHtml((e && e.message) || 'QRIS belum diunggah.') + '</p>'; });
+        }
+      } else qbox.innerHTML = '';
     }
-    methodSel.addEventListener('change', updateChange); receivedInput.addEventListener('input', updateChange); updateChange();
+    methodSel.addEventListener('change', updateChange); m.querySelector('#pay-method-2').addEventListener('change', updateChange); receivedInput.addEventListener('input', updateChange); updateChange();
+    // Tombol cepat uang tunai: "Uang Pas" + pecahan terdekat di atas total (tanpa mengetik).
+    function quickAmounts(t) {
+      var set = {}; [5000, 10000, 20000, 50000, 100000].forEach(function (step) { var v = Math.ceil(t / step) * step; if (v > t) set[v] = true; });
+      return Object.keys(set).map(Number).sort(function (a, b) { return a - b; }).slice(0, 4);
+    }
+    var quick = m.querySelector('#pay-quick');
+    quick.innerHTML = '<button type="button" class="qc qc-pas" data-amt="' + total + '">Uang Pas</button>' + quickAmounts(total).map(function (a) { return '<button type="button" class="qc" data-amt="' + a + '">' + Utils.formatCurrency(a) + '</button>'; }).join('');
+    function markQuick() { Array.prototype.forEach.call(quick.children, function (b) { b.classList.toggle('on', Number(b.getAttribute('data-amt')) === Number(receivedInput.value || 0)); }); }
+    quick.addEventListener('click', function (e) { var b = e.target.closest('.qc'); if (!b) return; receivedInput.value = b.getAttribute('data-amt'); updateChange(); markQuick(); });
+    receivedInput.addEventListener('input', markQuick); markQuick();
 
-    m.querySelector('#pay-submit').addEventListener('click', function () {
+    var confirmBox = m.querySelector('#pay-confirm'), submitBtn = m.querySelector('#pay-submit');
+    function confirmText() {
+      var method = methodSel.value, t = Utils.formatCurrency(total);
+      if (method === 'HUTANG') return 'Transaksi ' + t + ' akan dicatat sebagai hutang pelanggan.';
+      if (method === 'QRIS' || (splitOn && m.querySelector('#pay-method-2').value === 'QRIS')) return 'Pastikan pembayaran QRIS sudah benar-benar diterima (cek notifikasi/mutasi). Total ' + t + '.';
+      return 'Konfirmasi pembayaran dengan total ' + t + ' telah dibayarkan oleh pembeli.';
+    }
+    function preCheck() {
+      var method = methodSel.value;
+      if (method === 'HUTANG' && !(m.querySelector('#pay-customer').value || customerId)) return 'Pilih pelanggan untuk transaksi Hutang.';
+      if (splitOn && method !== 'HUTANG') { var a2 = Number(m.querySelector('#pay-amount-2').value || 0); if (a2 <= 0 || a2 >= total) return 'Nominal metode ke-2 harus lebih dari 0 dan kurang dari total.'; }
+      else if (method === 'CASH' && Number(receivedInput.value || 0) < total) return 'Uang diterima kurang dari total.';
+      return '';
+    }
+    submitBtn.addEventListener('click', function () {
+      var bad = preCheck(); if (bad) { Utils.toast(bad, 'error'); return; }
+      m.querySelector('#pay-confirm-text').textContent = confirmText(); confirmBox.hidden = false; submitBtn.hidden = true;
+    });
+    m.querySelector('#pay-cancel').addEventListener('click', function () { confirmBox.hidden = true; submitBtn.hidden = false; });
+    m.querySelector('#pay-ok').addEventListener('click', function () {
       var method = methodSel.value, cid = customerId || '';
       if (method === 'HUTANG') { cid = m.querySelector('#pay-customer').value || customerId; if (!cid) { Utils.toast('Pilih pelanggan untuk transaksi Hutang.', 'error'); return; } }
       var payments;
@@ -344,8 +382,7 @@ Modules.pos = (function () {
         if (received < total) { Utils.toast('Uang diterima kurang dari total.', 'error'); return; }
         payments = [{ method: 'CASH', amount: total, received: received }];
       } else payments = [{ method: method, amount: total }];
-      if (method === 'QRIS' || (splitOn && payments.some(function (pe) { return pe.method === 'QRIS'; }))) { if (!confirm('Pastikan pembayaran QRIS sudah benar-benar diterima (cek notifikasi/mutasi) sebelum konfirmasi. Lanjutkan?')) return; }
-      var btn = m.querySelector('#pay-submit'); btn.disabled = true; btn.textContent = 'Memproses...';
+      var btn = m.querySelector('#pay-ok'); btn.disabled = true; m.querySelector('#pay-cancel').disabled = true; btn.textContent = 'Memproses...';
       var snapCart = cart.map(function (l) { return { product_id: l.product_id, product_name: l.product_name, unit_id: l.unit_id, unit_name: l.unit_name, conversion_to_base: l.conversion_to_base, unit_price: l.unit_price, qty: l.qty, discount: l.discount }; });
       var base = { items: cart.map(function (l) { return { product_id: l.product_id, qty: l.qty, discount: l.discount, unit_id: l.unit_id }; }), discount: discount, payments: payments, customer_id: cid || undefined, idempotency_key: 'sale_' + Date.now() + '_' + Math.random().toString(36).slice(2) };
       var cname = custName();
@@ -353,23 +390,33 @@ Modules.pos = (function () {
         Utils.closeModal(); cart = []; orderDiscount = 0; customerId = ''; updateCartBar(); refreshCtrls();
         if (window.Notify) { Notify.playEvent('SALE_DONE'); if (result && result.sale_number) Notify.rememberSale(result.sale_number); }
         if (isQueued) { Offline.decrementLocal(snapCart); showLocalReceipt(item); renderGrid(); }
-        else { if (window.Offline) Api.call('notify.flush', {}).catch(function () {}); showReceipt(result.sale_id); }
+        else { if (window.Offline) Api.call('notify.flush', {}).catch(function () {}); showSaleReceipt(result, snapCart, base, cname); }
       }
       function queue() { return Offline.enqueue(base, snapCart, cname).then(function (item) { finished(true, null, item); }); }
       if (!Offline.isOnline()) { queue(); return; }
       Api.call('pos.createSale', base).then(function (result) { finished(false, result); }).catch(function (err) {
         if (err && (err.code === 'NETWORK_ERROR' || err.code === 'TIMEOUT')) { Utils.toast('Koneksi terputus. Transaksi disimpan di perangkat dan dikirim otomatis.', 'info'); queue(); return; }
-        Utils.toast(err.message, 'error'); btn.disabled = false; btn.textContent = 'Selesaikan Transaksi';
+        Utils.toast(err.message, 'error'); btn.disabled = false; m.querySelector('#pay-cancel').disabled = false; btn.textContent = 'OK';
       });
     });
   }
 
+  var SHARE_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/></svg>';
   function receiptModal(data, title, note) {
     var m = Utils.openModal(
-      '<h3>' + title + '</h3>' + (note ? '<div class="hint" style="color:var(--warning);font-weight:700;">' + note + '</div>' : '') +
-      '<div class="receipt-preview">' + Utils.escapeHtml((window.ReceiptBuilder.buildPreviewLines || window.ReceiptBuilder.buildTextLines)(data).join('\n')) + '</div>' +
-      '<div class="field-row" style="margin-top:14px;"><button class="btn btn-outline btn-block" id="btn-preview">Pratinjau</button><button class="btn btn-secondary btn-block" id="btn-print">Cetak Struk</button></div>' +
-      '<button class="btn btn-outline btn-block" id="btn-close" style="margin-top:8px;">Transaksi Baru</button>');
+      '<h3 class="rcpt-title"><span class="rcpt-check">&#10003;</span>' + title + '</h3>' + (note ? '<div class="hint" style="color:var(--warning);font-weight:700;">' + note + '</div>' : '') +
+      '<div class="rcpt-scroll"><div class="receipt-preview rcpt">' + window.ReceiptView.html(data) + '</div></div>' +
+      '<div class="field-row" style="margin-top:12px;"><button class="btn btn-primary btn-block" id="btn-share">' + SHARE_ICON + 'Bagikan</button><button class="btn btn-secondary btn-block" id="btn-print">Cetak Struk</button></div>' +
+      '<div class="share-fb" id="share-fb" hidden><p class="hint">Lembar bagikan tidak tersedia di perangkat ini. Pilih:</p><div class="field-row"><button class="btn btn-outline btn-block" id="sfb-img">Unduh gambar</button><button class="btn btn-outline btn-block" id="sfb-wa">WhatsApp</button><button class="btn btn-outline btn-block" id="sfb-copy">Salin teks</button></div></div>' +
+      '<div class="field-row" style="margin-top:8px;"><button class="btn btn-ghost btn-block" id="btn-preview">Tampilan cetak</button><button class="btn btn-outline btn-block" id="btn-close">Transaksi Baru</button></div>');
+    var fb = window.ReceiptView.fallbackActions(data);
+    m.querySelector('#btn-share').addEventListener('click', function () {
+      var b = this; b.disabled = true;
+      window.ReceiptView.share(data, function () { m.querySelector('#share-fb').hidden = false; }).then(function () { b.disabled = false; }, function () { b.disabled = false; });
+    });
+    m.querySelector('#sfb-img').addEventListener('click', function () { fb.download().then(function () { Utils.toast('Gambar struk diunduh.', 'success'); }).catch(function (e) { Utils.toast(e.message, 'error'); }); });
+    m.querySelector('#sfb-wa').addEventListener('click', function () { fb.whatsapp(); });
+    m.querySelector('#sfb-copy').addEventListener('click', function () { fb.copy().then(function () { Utils.toast('Teks struk disalin.', 'success'); }).catch(function () { Utils.toast('Tidak bisa menyalin di perangkat ini.', 'error'); }); });
     m.querySelector('#btn-preview').addEventListener('click', function () {
       var mm = window.PrinterBrowserAdapter.getPaperWidth();
       var html = '<html><head><meta charset="utf-8">' + window.PrinterBrowserAdapter.styleFor(mm) + '</head><body>' + window.ReceiptBuilder.buildHtml(data) + '</body></html>';
@@ -382,6 +429,15 @@ Modules.pos = (function () {
     if (window.PrinterManager.shouldAutoPrint && window.PrinterManager.shouldAutoPrint()) {
       setTimeout(function () { var b = m.querySelector('#btn-print'); if (b && !b.disabled) b.click(); }, 250);
     }
+  }
+  /** Struk LANGSUNG tampil (dibuat di perangkat dari data transaksi), tanpa menunggu server lagi. Bila total beda dengan server (harga grosir/promo) atau data toko belum ada -> ambil struk resmi dari server. */
+  function showSaleReceipt(result, snapCart, base, cname) {
+    Offline.loadSnapshot().then(function (sn) {
+      if (!sn || !sn.store || !sn.store.store_name || !result.sale_number) return showReceipt(result.sale_id);
+      var rec = Offline.buildReceipt(result.sale_number, Offline.isoLocal(new Date()), snapCart, base.discount || 0, base.payments, cname, sn);
+      if (result.total != null && Math.abs(Number(result.total) - rec.total) > 0.5) return showReceipt(result.sale_id);
+      receiptModal(rec, 'Transaksi Berhasil');
+    }).catch(function () { showReceipt(result.sale_id); });
   }
   function showReceipt(saleId) {
     Api.call('pos.reprintReceipt', { sale_id: saleId }).then(function (data) { receiptModal(data, 'Transaksi Berhasil'); }).catch(function (err) { Utils.toast('Transaksi tersimpan, tetapi struk gagal dimuat: ' + err.message + '. Buka Riwayat untuk cetak ulang.', 'error'); Router.render(); });
