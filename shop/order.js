@@ -12,7 +12,7 @@ Modules.order = (function () {
       '<h1 style="color:var(--success, #1a7f45);">Pesanan Diterima</h1>' +
       '<p>Nomor pesanan Anda:</p><h2 style="color:var(--red);">' + order.order_number + '</h2>' +
       '<p>Simpan nomor ini untuk melacak status pesanan Anda.</p>' +
-      '<a href="#/shop/tracking" class="btn btn-primary">Lacak Pesanan</a> ' +
+      '<a href="#/shop/orders" class="btn btn-primary">Lacak Pesanan</a> ' +
       '<a href="#/shop/home" class="btn btn-outline">Belanja Lagi</a>' +
       '</div>';
     return Promise.resolve();

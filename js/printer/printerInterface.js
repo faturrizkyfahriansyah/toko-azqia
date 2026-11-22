@@ -132,6 +132,20 @@ window.PrinterManager = (function () {
     });
   }
 
+  /** Cetak otomatis setelah bayar: bawaan AKTIF di aplikasi (printer sudah dipilih), MATI di browser (dialog cetak mengganggu). */
+  var AUTO_KEY = 'azqia_autoprint';
+  function getAutoPrint() {
+    var v = localStorage.getItem(AUTO_KEY);
+    if (v === '1') return true; if (v === '0') return false;
+    return inApp();
+  }
+  function setAutoPrint(on) { localStorage.setItem(AUTO_KEY, on ? '1' : '0'); }
+  function shouldAutoPrint() {
+    if (!getAutoPrint()) return false;
+    if (inApp()) return !!window.PrinterNativeAdapter.getSelection(); // di aplikasi hanya bila printer sudah dipilih
+    return true;
+  }
+
   function print(receiptData) { return runWithFallback('print', receiptData); }
   function testPrint() { return runWithFallback('testPrint'); }
 
@@ -159,15 +173,17 @@ window.PrinterManager = (function () {
   }
 
   function showPrintFailureBanner(button, receiptData, action, err) {
-    var old = button.parentNode.querySelector('.print-fail-banner');
+    // Sisipkan SETELAH baris tombol (bukan di dalam baris flex), supaya tombol tidak terjepit seperti di Riwayat.
+    var host = (button.closest && button.closest('.field-row')) || button;
+    var old = host.parentNode.querySelector('.print-fail-banner');
     if (old) old.remove();
     var banner = document.createElement('div');
     banner.className = 'card print-fail-banner';
-    banner.style.marginTop = '8px';
+    banner.style.marginTop = '8px'; banner.style.width = '100%'; banner.style.boxSizing = 'border-box';
     banner.innerHTML =
       '<div class="muted" style="color:var(--red);margin-bottom:8px;">Transaksi berhasil disimpan, tetapi struk belum tercetak (' + Utils.escapeHtml(err.message) + ').</div>' +
       '<div class="field-row"><button class="btn btn-primary btn-sm" id="__pf_retry">Coba Lagi</button><button class="btn btn-outline btn-sm" id="__pf_later">Nanti</button></div>';
-    button.parentNode.insertBefore(banner, button.nextSibling);
+    host.parentNode.insertBefore(banner, host.nextSibling);
     banner.querySelector('#__pf_retry').addEventListener('click', function () {
       banner.remove();
       printWithUI(button, receiptData, action);
@@ -188,6 +204,7 @@ window.PrinterManager = (function () {
     print: print, testPrint: testPrint, preview: preview, printWithUI: printWithUI,
     availableAdapters: availableAdapters, detectCapabilities: detectCapabilities,
     getPreferredAdapterName: getPreferredAdapterName, setPreferredAdapterName: setPreferredAdapterName,
-    statusLabel: statusLabel, getJobHistory: getJobHistory
+    statusLabel: statusLabel, getJobHistory: getJobHistory,
+    getAutoPrint: getAutoPrint, setAutoPrint: setAutoPrint, shouldAutoPrint: shouldAutoPrint
   };
 })();

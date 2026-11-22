@@ -22,7 +22,7 @@ Modules.payment = (function () {
       html += '<div class="card"><p>Selesaikan pembayaran sesuai metode yang dipilih. Pesanan Anda akan diproses staf toko setelah pembayaran diverifikasi.</p></div>';
     }
     html += (order.payment_method === 'TUNAI' || order.payment_method === 'COD' ? '' : '<a href="#/shop/order" class="btn btn-primary btn-block">Saya Sudah Membayar</a>') +
-      '<a href="#/shop/tracking" class="btn btn-outline btn-block" style="margin-top:8px;">Lacak Pesanan Ini</a>';
+      '<a href="#/shop/orders" class="btn btn-outline btn-block" style="margin-top:8px;">Lacak Pesanan Ini</a>';
     container.innerHTML = html;
     return Promise.resolve();
   }

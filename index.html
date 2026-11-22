@@ -15,19 +15,22 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div id="app"><div class="content"><div class="spinner"></div></div></div>
+<div id="app"><div class="boot-splash"><div class="spinner"></div></div></div>
 
 <!-- Urutan pemuatan penting: utils/api/auth/config sebelum router; router sebelum layout;
      printer & barcode sebelum modul yang memakainya (pos.js/products.js); semua modul sebelum
      skrip init di akhir. -->
 <script defer src="js/utils.js"></script>
 <script defer src="js/pricing.js"></script>
+<script>/* Aplikasi mode "langsung dari internet": jembatan cetak native dimuat dari situs ini (hanya di dalam aplikasi, bukan di browser biasa). */
+if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && location.hostname !== 'localhost' && !window.TokoqiaNative) document.write('<script src="js/native/bridge.bundle.js"><\/script>');</script>
 <script defer src="js/api.js"></script>
 <script defer src="js/offline.js"></script>
 <script defer src="js/notify.js"></script>
 <script defer src="js/auth.js"></script>
 <script defer src="js/config.js"></script>
 <script defer src="js/cart-state.js"></script>
+<script defer src="js/whatsnew.js"></script>
 <script defer src="js/router.js"></script>
 <script defer src="js/layout.js"></script>
 
@@ -119,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   Router.render();
 
-  if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) { // di aplikasi (APK/iPhone) berkas sudah ada di dalam aplikasi
+  if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() && location.hostname === 'localhost')) { // aplikasi mode bawaan-di-dalam (localhost) tanpa SW; mode langsung dari internet memakai SW seperti browser (tampil offline)
     window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
   }
 });

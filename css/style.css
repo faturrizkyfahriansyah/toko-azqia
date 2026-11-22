@@ -815,3 +815,55 @@ tr.pr-unit.dirty input { border-color: #e0a100; } tr.pr-unit.err input { border-
 .pr-wrap { overflow: visible; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
 .oc-in, .oc-why { border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; background: var(--surface); color: var(--ink); min-width: 0; }
 .oc-in:focus, .oc-why:focus { outline: 2px solid var(--red); outline-offset: 0; border-color: var(--red); }
+
+/* ---- Di dalam aplikasi TOKOQIA (APK/iPhone): layar penuh sampai ke bawah status bar & lubang kamera ----
+   Kelas "in-app" dipasang oleh jembatan native (native/app-native/src/bridge.js). Capacitor menyuntikkan
+   --safe-area-inset-* (dibaca dari sistem Android); env() hanya cadangan. Di browser biasa tidak berlaku. */
+html.in-app {
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+/* Tombol "Pasang di layar utama" tidak berguna di dalam aplikasi. */
+html.in-app #btn-install, html.in-app #install-hint { display: none !important; }
+
+/* ---- Layar proses: spinner berputar di TENGAH (bukan menempel di pojok atas) ---- */
+.boot-splash { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg, #f4f5f7); }
+.boot-splash .spinner { margin: 0; width: 34px; height: 34px; border-width: 3.5px; }
+.loading-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 55vh; text-align: center; }
+.loading-center .spinner { margin: 0; width: 30px; height: 30px; border-width: 3px; }
+.login-help .login-forgot { color: var(--red); font-weight: 700; text-decoration: underline; }
+
+/* ---- Kartu produk: gambar KOTAK (rasio 1:1) bisa diklik; stepper selalu tampil + Beli Sekarang ---- */
+.p-tile { height: auto; width: 100%; aspect-ratio: 1 / 1; font-size: 2.6rem; }
+.p-tile.big { width: 100%; max-width: 320px; margin: 0 auto 10px; height: auto; aspect-ratio: 1 / 1; font-size: 4rem; }
+.p-tile.big .p-img { object-fit: contain; background: #fff; }
+.p-open:active .p-tile { transform: scale(0.98); }
+.p-foot { flex-direction: column; align-items: stretch; gap: 6px; }
+.p-act { margin-left: 0; display: flex; flex-direction: column; gap: 6px; }
+.p-act .stepper { display: flex; width: 100%; justify-content: space-between; }
+.p-act .stepper span { flex: 1; }
+.p-act .stepper button:disabled { opacity: 0.35; cursor: default; }
+.p-act .stepper.on { border-color: var(--red); }
+.p-buy { width: 100%; }
+.d-actions { display: flex; gap: 10px; margin-top: 12px; } .d-actions .btn { flex: 1; }
+.p-foot .badge { align-self: flex-start; }
+/* ---- Pesanan Saya: daftar pesanan langsung terlihat ---- */
+.ord-card { display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 12px 14px; margin-bottom: 10px; font: inherit; color: inherit; cursor: pointer; }
+.ord-card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ord-sub { font-size: 0.8rem; } .ord-items { font-size: 0.88rem; overflow-wrap: anywhere; }
+.ord-more { color: var(--red); font-weight: 700; font-size: 0.82rem; }
+.ord-manual { margin-top: 14px; } .ord-manual summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+/* ---- Akun pelanggan ---- */
+.acc-tabs { display: flex; gap: 6px; background: var(--surface-muted); border-radius: 999px; padding: 4px; margin-bottom: 12px; }
+.acc-tabs button { flex: 1; border: none; background: none; padding: 9px; border-radius: 999px; font: inherit; font-weight: 800; color: var(--ink-muted); cursor: pointer; }
+.acc-tabs button.on { background: var(--red); color: #fff; }
+.acc-me { display: flex; align-items: center; gap: 12px; }
+.acc-ava { width: 48px; height: 48px; border-radius: 50%; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 800; flex: none; }
+.acc-form .login-forgot, #acc-main .login-forgot { color: var(--red); font-weight: 700; text-decoration: underline; }
+
+/* Beranda: hanya kolom cari (nama & slogan toko sudah ada di header) */
+.shop-hero-search { padding: 12px; }
+.shop-hero-search .shop-search { margin: 0; }
+
+/* Jendela "Yang baru" */
+.whatsnew h3 { margin: 0 0 2px; } .whatsnew ul { margin: 0 0 14px; padding-left: 20px; } .whatsnew li { margin-bottom: 6px; }

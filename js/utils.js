@@ -145,7 +145,7 @@ window.Utils = (function () {
   })();
 
   function showLoading(container) {
-    container.innerHTML = '<div class="spinner"></div><div class="loading-hint" hidden>Masih memuat&hellip; koneksi mungkin lambat.</div>';
+    container.innerHTML = '<div class="loading-center"><div class="spinner"></div><div class="loading-hint" hidden>Masih memuat&hellip; koneksi mungkin lambat.</div></div>';
     setTimeout(function () { var h = container.querySelector && container.querySelector('.loading-hint'); if (h) h.hidden = false; }, 6000);
   }
 

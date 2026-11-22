@@ -4,15 +4,20 @@
 window.Modules = window.Modules || {};
 Modules.checkout = (function () {
   function render(container) {
-    var items = window.Cart.getItems();
+    var buyNow = /[?&]now=1/.test(location.hash), items = window.Cart.getItems();
+    if (buyNow) { try { items = JSON.parse(sessionStorage.getItem('azqia_buynow') || '[]'); } catch (e) { items = []; } }
+    var subtotal = items.reduce(function (s, l) { return s + l.qty * l.selling_price; }, 0);
+    var prof = window.CustAuth.profile() || {}, last = window.MyOrders.lastContact();
+    var esc = Utils.escapeHtml;
     if (items.length === 0) { container.innerHTML = '<div class="empty-state"><p>Keranjang kosong.</p><a class="btn btn-primary" href="#/shop/catalog">Belanja Dulu</a></div>'; return Promise.resolve(); }
 
     container.innerHTML = '<h1>Checkout</h1>' +
-      '<div class="card"><strong>Subtotal</strong>: ' + Utils.formatCurrency(window.Cart.subtotal()) + '</div>' +
+      (buyNow ? '<div class="card"><strong>Beli Sekarang</strong>: ' + esc(items[0] ? items[0].product_name : '') + ' x' + (items[0] ? items[0].qty : 0) + '<div class="muted">Isi keranjang lain tidak ikut dipesan.</div></div>' : '') +
+      '<div class="card"><strong>Subtotal</strong>: ' + Utils.formatCurrency(subtotal) + '</div>' +
       '<form id="checkout-form">' +
       '<div class="field"><label>Metode Pengambilan</label><select name="fulfillment_type" id="fulfillment"><option value="PICKUP">Ambil di Toko</option><option value="DELIVERY">Diantar (Delivery)</option></select></div>' +
-      '<div class="field"><label>Nama</label><input name="customer_name" required></div>' +
-      '<div class="field"><label>No. WhatsApp</label><input name="customer_phone" type="tel" inputmode="tel" placeholder="08xxxxxxxxxx" required></div>' +
+      '<div class="field"><label>Nama</label><input name="customer_name" required value="' + esc(prof.name || last.name) + '"></div>' +
+      '<div class="field"><label>No. WhatsApp</label><input name="customer_phone" type="tel" inputmode="tel" placeholder="08xxxxxxxxxx" required value="' + esc(prof.phone_display || last.phone) + '"></div>' +
       '<div id="delivery-fields" style="display:none;">' +
       '<div class="field"><label>Alamat Pengantaran</label><textarea name="delivery_address" rows="3"></textarea></div>' +
       '</div>' +
@@ -46,7 +51,8 @@ Modules.checkout = (function () {
       fd.idempotency_key = idemKey;
       var btn = e.target.querySelector('button'); btn.disabled = true; btn.textContent = 'Memproses...';
       Api.call('public.checkout', fd).then(function (result) {
-        window.Cart.clear();
+        if (buyNow) { try { sessionStorage.removeItem('azqia_buynow'); } catch (e) {} } else window.Cart.clear();
+        window.MyOrders.add({ order_number: result.order_number, verify: String(fd.customer_phone || '').replace(/\D/g, '').slice(-4), name: fd.customer_name, phone: fd.customer_phone, date: new Date().toISOString(), total: result.grand_total, fulfillment_type: fd.fulfillment_type, payment_method: fd.payment_method, items: items.map(function (l) { return { product_name: l.product_name, qty: l.qty }; }) });
         result.payment_method = fd.payment_method;
         sessionStorage.setItem('azqia_last_order', JSON.stringify(result));
         Router.navigate('#/shop/payment');

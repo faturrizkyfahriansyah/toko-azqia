@@ -378,6 +378,10 @@ Modules.pos = (function () {
     });
     m.querySelector('#btn-print').addEventListener('click', function () { window.PrinterManager.printWithUI(m.querySelector('#btn-print'), data); });
     m.querySelector('#btn-close').addEventListener('click', function () { Utils.closeModal(); Router.render(); });
+    // Setelah pembayaran: langsung kirim ke printer (sekali). Gagal -> banner "Coba Lagi"; transaksi tidak pernah diulang.
+    if (window.PrinterManager.shouldAutoPrint && window.PrinterManager.shouldAutoPrint()) {
+      setTimeout(function () { var b = m.querySelector('#btn-print'); if (b && !b.disabled) b.click(); }, 250);
+    }
   }
   function showReceipt(saleId) {
     Api.call('pos.reprintReceipt', { sale_id: saleId }).then(function (data) { receiptModal(data, 'Transaksi Berhasil'); }).catch(function (err) { Utils.toast('Transaksi tersimpan, tetapi struk gagal dimuat: ' + err.message + '. Buka Riwayat untuk cetak ulang.', 'error'); Router.render(); });

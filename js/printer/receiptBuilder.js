@@ -295,7 +295,7 @@ window.ReceiptBuilder = (function () {
 
     return logoPromise.then(function (logoRaster) {
       align(1);
-      if (logoRaster) buf.bytes(logoRaster);
+      if (logoRaster) { align(0); buf.bytes(logoRaster); align(1); }
       bold(true); buf.text(padCenter(data.store_name) + '\n'); bold(false);
       setFont(settings.headerFontSize);
       if (settings.headerShowTagline) wrap(data.store_tagline, WIDTH).forEach(function (l) { buf.text(padCenter(l) + '\n'); });
@@ -376,20 +376,39 @@ window.ReceiptBuilder = (function () {
     return out;
   }
 
+  /** Lebar area cetak dalam dot: 384 untuk kertas 58mm (32 karakter), 576 untuk 80mm (48 karakter). */
+  function printDots(settings) { return (settings && settings.charWidth >= 44) ? 576 : 384; }
+
+  /**
+   * Gambar (logo/barcode/QR) dibuat SELEBAR AREA CETAK dengan isi tepat di tengah, lalu dikirim rata kiri.
+   * Alasan: printer thermal murah memusatkan bitmap memakai lebar bawaan pabrik (80mm) bukan 58mm, sehingga logo/QR
+   * bergeser ke kanan di foto uji RPP02N. Dengan bitmap selebar penuh, posisi tidak bergantung pada printer.
+   */
+  function centerOnCanvas(source, targetDots, maxContentDots, scaleToWidth) {
+    var sw = source.naturalWidth || source.width, sh = source.naturalHeight || source.height;
+    var cw = scaleToWidth ? Math.min(sw, scaleToWidth) : sw;
+    if (cw > (maxContentDots || targetDots)) cw = (maxContentDots || targetDots);
+    if (cw > targetDots) cw = targetDots;
+    var ch = Math.max(1, Math.round(sh * cw / sw));
+    var c = document.createElement('canvas'); c.width = targetDots; c.height = ch;
+    c.getContext('2d').drawImage(source, Math.floor((targetDots - cw) / 2), 0, cw, ch);
+    return c;
+  }
+
   /** Muat logo TOKOQIA yang SUDAH ADA di project (tidak membuat/generate logo baru) dan konversi ke raster. */
   var LOGO_SIZE_PX = { small: 150, medium: 200, large: 260 };
   var logoRasterCacheBySize = {};
   function loadLogoRaster(sizeKey) {
     var px = LOGO_SIZE_PX[sizeKey] || LOGO_SIZE_PX.medium;
-    if (logoRasterCacheBySize[px]) return Promise.resolve(logoRasterCacheBySize[px]);
+    var dots = printDots(getReceiptSettings());
+    var key = px + '_' + dots;
+    if (logoRasterCacheBySize[key]) return Promise.resolve(logoRasterCacheBySize[key]);
     return new Promise(function (resolve, reject) {
       var img = new Image();
       img.onload = function () {
-        var canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        logoRasterCacheBySize[px] = canvasToEscPosRaster(canvas, px); // dibuat lebih kecil dari lebar penuh agar struk tidak didominasi logo
-        resolve(logoRasterCacheBySize[px]);
+        // dibuat lebih kecil dari lebar penuh agar struk tidak didominasi logo, lalu ditaruh di tengah kanvas selebar area cetak
+        logoRasterCacheBySize[key] = canvasToEscPosRaster(centerOnCanvas(img, dots, dots, px), dots);
+        resolve(logoRasterCacheBySize[key]);
       };
       img.onerror = function () { reject(new Error('Logo tidak ditemukan')); };
       img.src = 'assets/icons/tokoqia-receipt-icon-black.png';
@@ -409,7 +428,7 @@ window.ReceiptBuilder = (function () {
     var logoPromise = settings.logoShow ? loadLogoRaster(settings.logoSize).catch(function () { return null; }) : Promise.resolve(null);
     return logoPromise.then(function (logoRaster) {
       align(1);
-      if (logoRaster) buf.bytes(logoRaster);
+      if (logoRaster) { align(0); buf.bytes(logoRaster); align(1); }
       bold(true); buf.text('TOKOQIA\n'); bold(false);
       buf.text('TOKO AZQIA\n\n');
       buf.text('Printer Test\n\n');
@@ -426,14 +445,16 @@ window.ReceiptBuilder = (function () {
       buf.text('0123456789\n\n');
 
       return BarcodeTools.renderBarcodeToCanvas('CODE128TEST', 50).then(function (canvas) {
+        var dots = printDots(settings);
         align(1);
         buf.text('CODE128 TEST\n');
-        buf.bytes(canvasToEscPosRaster(canvas, 384));
+        align(0); buf.bytes(canvasToEscPosRaster(centerOnCanvas(canvas, dots, dots), dots)); align(1);
         buf.text('\n');
         return BarcodeTools.renderQrToCanvas('TOKOQIA-TEST-' + Date.now(), 160);
       }).then(function (qrCanvas) {
         buf.text('QR TEST\n');
-        buf.bytes(canvasToEscPosRaster(qrCanvas, 200));
+        var d2 = printDots(settings);
+        align(0); buf.bytes(canvasToEscPosRaster(centerOnCanvas(qrCanvas, d2, 200), d2)); align(1);
         buf.text('\n');
         align(0);
         buf.text(line('-') + '\n');
@@ -464,7 +485,7 @@ window.ReceiptBuilder = (function () {
   return {
     buildTextLines: buildTextLines, buildPreviewLines: buildPreviewLines, buildHtml: buildHtml, WIDTH: WIDTH,
     buildEscPosBytes: buildEscPosBytes, buildTestPrintBytes: buildTestPrintBytes,
-    canvasToEscPosRaster: canvasToEscPosRaster, ascSafe: ascSafe,
+    canvasToEscPosRaster: canvasToEscPosRaster, centerOnCanvas: centerOnCanvas, printDots: printDots, ascSafe: ascSafe,
     getReceiptSettings: getReceiptSettings, setReceiptSettings: setReceiptSettings, buildSampleReceiptData: buildSampleReceiptData
   };
 })();

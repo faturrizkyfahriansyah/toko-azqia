@@ -19,7 +19,8 @@ window.PrinterNativeAdapter = (function () {
   var SEL_KEY = 'azqia_native_printer';
   var CHUNK_KEY = 'azqia_native_chunk';
   var PREFER = ['ffe1', 'fff2', 'ae01', '2af1']; // karakteristik tulis printer thermal yang umum
-  var CONNECT_TIMEOUT_MS = 15000;
+  var CONNECT_TIMEOUT_MS = 25000; // Java mencoba beberapa cara sambung (bisa 10+ detik)
+  var IDLE_DISCONNECT_MS = 5000;  // lepas printer setelah tidak dipakai, supaya tidak 'dikunci' dan bisa dipakai HP lain / cetak berikutnya
   var WRITE_TIMEOUT_MS = 30000;
 
   var conn = { method: null, id: null, ble: null, connected: false };
@@ -103,7 +104,7 @@ window.PrinterNativeAdapter = (function () {
         .then(function () { return discoverWritable(sel.id); })
         .then(function (w) { conn = { method: 'ble', id: sel.id, ble: w, connected: true }; });
     }
-    return withTimeout(p, CONNECT_TIMEOUT_MS, 'Waktu menyambung ke ' + sel.name + ' habis. Pastikan printer menyala, dekat, dan tidak dipakai perangkat lain.')
+    return withTimeout(p, CONNECT_TIMEOUT_MS, 'Waktu menyambung ke ' + sel.name + ' habis. Pastikan printer menyala, dekat, dan tidak sedang tersambung ke HP lain (printer hanya menerima satu HP).')
       .then(function () { return sel; })
       .catch(function (err) { resetConn(); throw err; });
   }
@@ -129,8 +130,17 @@ window.PrinterNativeAdapter = (function () {
   }
   function writeSpp(bytes) { return nat().spp.write(getSelection().id, bytes); }
 
-  /** Kirim byte ke printer; bila gagal, sambung ulang lalu coba sekali lagi. Galat terakhir diteruskan apa adanya. */
+  // Printer thermal murah hanya menerima SATU sambungan dan sering memutus sendiri. Karena itu sambungan TIDAK dibiarkan
+  // terbuka: dilepas beberapa detik setelah cetak terakhir (dan saat aplikasi masuk latar belakang), lalu disambung lagi
+  // saat perlu. Ini mencegah "waktu menyambung habis" akibat sambungan lama yang menggantung.
+  var idleTimer = null;
+  function cancelIdle() { if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } }
+  function scheduleIdleDisconnect() { cancelIdle(); idleTimer = setTimeout(function () { idleTimer = null; disconnect(); }, IDLE_DISCONNECT_MS); }
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', function () { if (document.hidden) { cancelIdle(); disconnect(); } });
+
+  /** Kirim byte ke printer; bila gagal, putus, tunggu printer melepas kanal, sambung ulang lalu coba sekali lagi. Galat terakhir diteruskan apa adanya. */
   function sendBytes(bytes) {
+    cancelIdle();
     function attempt() {
       return connect().then(function (sel) {
         return withTimeout(sel.method === 'spp' ? writeSpp(bytes) : writeBle(bytes), WRITE_TIMEOUT_MS,
@@ -138,8 +148,9 @@ window.PrinterNativeAdapter = (function () {
       });
     }
     return attempt().catch(function () {
-      return disconnect().then(function () { return attempt(); });
-    }).catch(function (err) { throw new Error(friendly(err)); });
+      return disconnect().then(function () { return sleep(1200); }).then(function () { return attempt(); });
+    }).then(function (r) { scheduleIdleDisconnect(); return r; },
+            function (err) { scheduleIdleDisconnect(); throw new Error(friendly(err)); });
   }
 
   function print(receiptData) {

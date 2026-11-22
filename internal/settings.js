@@ -187,6 +187,8 @@ Modules.settings = (function () {
       '<div class="field-row"><button class="btn btn-primary btn-block" id="np-test"' + (sel ? '' : ' disabled') + '>Tes Cetak</button>' +
       (sel ? '<button class="btn btn-outline btn-block" id="np-forget">Lupakan</button>' : '') + '</div>' +
       '<div id="np-status" class="muted" style="margin-top:8px;"></div></div>' +
+      '<div class="card"><div class="row"><div><div class="set-h" style="margin:0;">Cetak otomatis setelah bayar</div><div class="muted">Struk langsung dikirim ke printer begitu pembayaran berhasil.</div></div>' +
+      '<button class="btn ' + (window.PrinterManager.getAutoPrint() ? 'btn-primary' : 'btn-outline') + ' btn-sm" id="np-auto">' + (window.PrinterManager.getAutoPrint() ? 'Aktif' : 'Mati') + '</button></div></div>' +
       '<div class="card"><div class="set-h">Pilih printer</div>' +
       (hasSpp ? '<button class="btn btn-secondary btn-block" id="np-spp">Printer yang sudah dipasangkan (Bluetooth Classic)</button><div id="np-spp-list" style="margin:8px 0;"></div>' : '') +
       '<button class="btn ' + (hasSpp ? 'btn-outline' : 'btn-secondary') + ' btn-block" id="np-ble" style="margin-top:8px;">Cari printer Bluetooth LE</button>' +
@@ -212,6 +214,7 @@ Modules.settings = (function () {
       NA.setChunkSize(Math.max(20, Math.min(512, Number(body.querySelector('#np-chunk').value) || 20)));
       Utils.toast('Disimpan.', 'success');
     });
+    body.querySelector('#np-auto').addEventListener('click', function () { window.PrinterManager.setAutoPrint(!window.PrinterManager.getAutoPrint()); again(); });
     var bleBtn = body.querySelector('#np-ble');
     bleBtn.addEventListener('click', function () {
       bleBtn.disabled = true; statusEl.textContent = '';

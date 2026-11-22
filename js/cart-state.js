@@ -32,3 +32,32 @@ window.Cart = (function () {
 
   return { getItems: getItems, count: count, add: add, setQty: setQty, remove: remove, clear: clear, subtotal: subtotal };
 })();
+
+
+/**
+ * Pesanan saya di perangkat ini (tamu) + sesi akun pelanggan. Hanya localStorage perangkat pembeli:
+ * nomor pesanan, 4 digit akhir WA (untuk verifikasi pelacakan), ringkasan item. Bukan data sensitif.
+ */
+window.MyOrders = (function () {
+  var KEY = 'azqia_my_orders', MAX = 30;
+  function read() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+  function write(a) { try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, MAX))); } catch (e) {} }
+  function list() { return read(); }
+  function add(o) {
+    var a = read().filter(function (x) { return x.order_number !== o.order_number; });
+    a.unshift(o); write(a);
+  }
+  function lastContact() { var a = read()[0]; return a ? { name: a.name || '', phone: a.phone || '' } : { name: '', phone: '' }; }
+  return { list: list, add: add, lastContact: lastContact };
+})();
+
+window.CustAuth = (function () {
+  var KEY = 'azqia_cust';
+  function read() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  function get() { return read(); }
+  function token() { var s = read(); return s && s.token ? s.token : ''; }
+  function profile() { var s = read(); return s && s.profile ? s.profile : null; }
+  function set(token, profile) { try { localStorage.setItem(KEY, JSON.stringify({ token: token, profile: profile })); } catch (e) {} }
+  function clear() { try { localStorage.removeItem(KEY); } catch (e) {} }
+  return { get: get, token: token, profile: profile, set: set, clear: clear, loggedIn: function () { return !!token(); } };
+})();

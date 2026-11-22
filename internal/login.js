@@ -16,11 +16,32 @@ Modules.login = {
       '<button class="btn btn-primary btn-block" type="submit">Masuk</button>' +
       '</form>' +
       '<div id="login-error" class="login-error" role="alert"></div>' +
-      '<p class="login-help">Lupa kata sandi? Hubungi pemilik.</p>' +
+      '<p class="login-help">Lupa kata sandi? <a href="#" id="forgot-link" class="login-forgot">Hubungi pemilik</a>.</p>' +
       (window.AZQIA_ENTRY === 'kasir' ? '<button type="button" class="btn btn-outline btn-block" id="btn-install" style="margin-top:6px;">Pasang \"Kasir AZQIA\" di layar utama</button><p class="hint" id="install-hint" style="display:none;text-align:left;"></p>' : '') +
       '</div>';
     document.getElementById('pw-eye').addEventListener('click', function () {
       var i = document.getElementById('pw'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; this.setAttribute('aria-pressed', show ? 'true' : 'false'); this.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Lihat password');
+    });
+
+    // "Lupa kata sandi": nomor WhatsApp toko diambil dari info toko (publik). Tautan baru aktif setelah nomor diketahui.
+    var forgot = document.getElementById('forgot-link'), ownerWa = '';
+    function forgotHref() {
+      var u = (document.querySelector('#login-form [name=username]') || {}).value || '';
+      return Utils.waLink(ownerWa) + '?text=' + encodeURIComponent('Halo, saya lupa kata sandi TOKOQIA.' + (u ? ' Username saya: ' + u : ''));
+    }
+    function loadOwner() {
+      return Api.call('public.storeInfo', {}).then(function (si) {
+        ownerWa = (si && si.store_contact) || '';
+        if (ownerWa) { forgot.href = forgotHref(); forgot.target = '_blank'; forgot.rel = 'noopener'; }
+      }).catch(function () {});
+    }
+    loadOwner();
+    forgot.addEventListener('click', function (e) {
+      if (ownerWa) { forgot.href = forgotHref(); return; } // biarkan tautan WhatsApp terbuka
+      e.preventDefault();
+      var box = document.getElementById('login-error');
+      box.textContent = 'Memuat nomor pemilik... coba ketuk lagi sebentar lagi.';
+      loadOwner().then(function () { box.textContent = ownerWa ? 'Nomor pemilik siap. Ketuk "Hubungi pemilik" sekali lagi.' : 'Nomor pemilik belum tersedia. Periksa koneksi internet lalu coba lagi.'; });
     });
 
     var inst = document.getElementById('btn-install');
