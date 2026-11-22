@@ -166,7 +166,7 @@ window.Layout = (function () {
         '<div class="topbar-spacer"></div>' +
         '<a href="#/shop/cart" class="icon-btn" aria-label="Keranjang">' + ICONS.cart + (cartCount > 0 ? '<span class="bell-badge">' + cartCount + '</span>' : '') + '</a></div>' +
         '<div id="view-container" class="content"></div>' +
-        '<div class="shop-foot" id="shop-foot"><span id="shop-foot-info"></span><a href="staff.html" id="link-staff-login">Staf</a></div>' +
+        '<div class="shop-foot" id="shop-foot">' + footerHtml('TOKOQIA SHOP') + '<div class="shop-foot-links"><span id="shop-foot-info"></span><a href="staff.html" id="link-staff-login">Staf</a></div></div>' +
         renderBottomNav(SHOP_NAV);
       setThemeColor('#d81324');
       fillShopFooter();
@@ -213,11 +213,17 @@ window.Layout = (function () {
   }
 
   /** Alamat, jam, dan kontak sebagai teks kecil di dasar halaman toko (data dari pengaturan toko). */
+  /** Penutup halaman yang SAMA untuk Kasir dan Shop: nama toko + aplikasi, alamat 2 baris, pembuat aplikasi. */
+  function footerHtml(appName) {
+    return '<div class="app-credit"><strong>TOKO AZQIA \u2022 ' + Utils.escapeHtml(appName) + '</strong>' +
+      '<span>Kp. Kecok, RT/RW 004/001, Ds. Jeungjing</span><span>Kec. Cisoka, Kab. Tangerang, Banten 15730</span>' +
+      '<span class="dev">Developer by Fatur Rizky Fahriansyah</span></div>';
+  }
+
   function fillShopFooter() {
     Api.call('public.storeInfo', {}).then(function (s) {
       var el = document.getElementById('shop-foot-info'); if (!el) return;
       var parts = [];
-      if (s.store_address) parts.push(Utils.escapeHtml(s.store_address));
       if (s.store_hours) parts.push('Buka ' + Utils.escapeHtml(s.store_hours));
       if (s.store_contact) { var wa = Utils.waLink(s.store_contact); parts.push('WA <a href="' + wa + '" target="_blank" rel="noopener">' + Utils.formatPhoneId(s.store_contact) + '</a>'); }
       el.innerHTML = parts.join(' &middot; ') + (parts.length ? ' &middot; ' : '');
@@ -328,5 +334,5 @@ window.Layout = (function () {
       if (n > 0) { if (!b) { b = document.createElement('span'); b.className = 'bell-badge'; a.appendChild(b); } b.textContent = n; } else if (b) b.remove();
     });
   }
-  return { renderShell: renderShell, highlightActive: highlightActive, ICONS: ICONS, updateCartBadge: updateCartBadge, setBellCount: setBellCount, drawerGroups: drawerGroups };
+  return { renderShell: renderShell, highlightActive: highlightActive, ICONS: ICONS, updateCartBadge: updateCartBadge, footerHtml: footerHtml, setBellCount: setBellCount, drawerGroups: drawerGroups };
 })();

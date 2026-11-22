@@ -234,14 +234,27 @@ Modules.products = (function () {
       var nameInput = m.querySelector('[name=product_name]'), catSel = m.querySelector('[name=category_id]'), hint = m.querySelector('#photo-hint');
       if (nameInput.value.trim()) return;
       hint.textContent = 'Membaca nama produk dari foto...';
-      Api.call('product.ai.describe', { mime: r.mime, data: r.data }).then(function (res) {
+      // Kirim versi KECIL (maks 512px, ~30-60 KB) agar cepat lewat 4G; AI hanya perlu membaca tulisan kemasan. Batas waktu lebih panjang (60 dtk) karena AI butuh beberapa detik.
+      downsizeForAi(r.dataUrl).then(function (small) { return Api.call('product.ai.describe', { mime: 'image/jpeg', data: small }, { timeoutMs: 60000 }); }).then(function (res) {
         if (!res || !res.found) { hint.textContent = 'Nama tidak terbaca dari foto. Isi manual ya.'; return; }
         if (!nameInput.value.trim()) nameInput.value = res.name;
         var catNote = '';
         if (res.category_id && catSel && catSel.value === String(defaultCat)) { catSel.value = res.category_id; catNote = ' Kategori: ' + res.category_name + '.'; }
         hint.textContent = 'Saran dari foto:' + catNote + ' Periksa dulu sebelum menyimpan.';
         nameInput.classList.add('ai-filled'); nameInput.addEventListener('input', function () { nameInput.classList.remove('ai-filled'); }, { once: true });
-      }).catch(function (err) { hint.textContent = (err && err.message) || 'Nama tidak terbaca dari foto. Isi manual ya.'; });
+      }).catch(function (err) { hint.textContent = (err && err.code === 'TIMEOUT') ? 'Pembacaan foto terlalu lama. Isi nama manual ya (foto tetap tersimpan).' : ((err && err.message) || 'Nama tidak terbaca dari foto. Isi manual ya.'); });
+    }
+    function downsizeForAi(dataUrl) {
+      return new Promise(function (resolve) {
+        var im = new Image();
+        im.onload = function () {
+          var k = Math.min(1, 512 / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round(im.naturalWidth * k)); cv.height = Math.max(1, Math.round(im.naturalHeight * k));
+          cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); resolve(cv.toDataURL('image/jpeg', 0.7).split(',')[1]);
+        };
+        im.onerror = function () { resolve(String(dataUrl).split(',')[1]); };
+        im.src = dataUrl;
+      });
     }
     // Scan barcode di dalam form (tanpa membuka jendela lain agar form tidak tertutup).
     var scanRef = null, bcWrap = m.querySelector('#bc-area-wrap');

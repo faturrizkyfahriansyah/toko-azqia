@@ -6,14 +6,16 @@
       "QRIS tampil lagi di Pengaturan dan di layar bayar kasir.",
       "Pembayaran kasir tanpa ketik: uang terisi, tombol Uang Pas + pecahan, lalu konfirmasi Batal/OK.",
       "Tambah Produk: scan barcode dengan kamera, saran nama + kategori dari foto, foto dirapikan jadi kotak putih.",
-      "Halaman masuk dirapikan: logo, nama toko, dan slogan."
+      "Halaman masuk dirapikan: logo, nama toko, dan slogan.",
+      "Penutup halaman: TOKO AZQIA \u2022 TOKOQIA KASIR, alamat 2 baris, Developer by Fatur Rizky Fahriansyah."
     ],
     "shop": [
       "Gambar produk berbentuk kotak dan bisa diklik untuk detail.",
       "Tombol - dan + langsung di kartu produk, plus tombol Beli Sekarang.",
       "Tab Pesanan langsung menampilkan semua pesanan Anda beserta statusnya.",
       "Buat akun dengan nomor WhatsApp untuk melihat riwayat pesanan di perangkat mana pun.",
-      "QRIS pembayaran tampil jelas, dan huruf awal tidak lagi menempel di foto produk."
+      "QRIS pembayaran tampil jelas, dan huruf awal tidak lagi menempel di foto produk.",
+      "Penutup halaman: TOKO AZQIA \u2022 TOKOQIA SHOP, alamat 2 baris, Developer by Fatur Rizky Fahriansyah."
     ]
   }
 }

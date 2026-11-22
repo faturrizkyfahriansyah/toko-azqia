@@ -5,7 +5,7 @@
  * (POST ke Apps Script) - transaksi, stok, dan pembayaran WAJIB selalu berupa panggilan
  * jaringan langsung, tidak boleh terlihat "berhasil" saat offline. Lihat docs/KNOWN_LIMITATIONS.md.
  */
-var CACHE_NAME = 'tokoqia-shell-v22';
+var CACHE_NAME = 'tokoqia-shell-v23';
 var IMG_CACHE = 'azqia-img-v1';
 var SHELL_FILES = [
   './', './index.html', './staff.html', './kasir.html', './manifest.json', './manifest-kasir.json', './assets/icons/tokoqia-kasir-192.png', './assets/icons/tokoqia-kasir-512.png', './offline.html',

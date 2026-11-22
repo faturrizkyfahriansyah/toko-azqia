@@ -901,3 +901,9 @@ html.in-app #btn-install, html.in-app #install-hint { display: none !important; 
 .rcpt-status { text-align: center; font-weight: 800; letter-spacing: 0.08em; margin-top: 8px; font-family: system-ui, sans-serif; } .rcpt-status.ok { color: #15803d; } .rcpt-status.warn { color: #b45309; }
 .rcpt-foot { text-align: center; display: flex; flex-direction: column; gap: 2px; font-weight: 700; } .rcpt-foot small { font-weight: 400; color: #777; margin-top: 4px; }
 .share-fb { margin-top: 10px; } .share-fb .field-row { display: flex; gap: 8px; } .share-fb .btn { flex: 1; padding-left: 6px; padding-right: 6px; font-size: 0.8rem; }
+
+/* Penutup halaman seragam Kasir + Shop */
+.app-credit { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; color: var(--ink-muted); font-size: 0.72rem; line-height: 1.5; }
+.app-credit strong { color: var(--ink); font-size: 0.8rem; letter-spacing: 0.02em; margin-bottom: 3px; }
+.app-credit .dev { margin-top: 8px; font-size: 0.7rem; opacity: 0.85; }
+.shop-foot-links { margin-top: 10px; font-size: 0.7rem; }

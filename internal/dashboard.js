@@ -76,12 +76,7 @@ Modules.dashboard = {
           '#/internal/transactions') +
 
         section('Notifikasi', '<div id="dash-notif-list"><div class="spinner"></div></div>') +
-        '<div class="footer-mini">' +
-        '<strong>TOKO AZQIA</strong><br>' +
-        'Melayani Kebutuhan,<br>Membangun Kepercayaan.<br><br>' +
-        'Kp. Kecok, RT/RW 004/001,<br>Ds. Jeungjing, Kec. Cisoka,<br>Kab. Tangerang, Banten 15730<br><br>' +
-        'Developer by TOKOQIA<br>Developer by Patriski Marionsha' +
-        '</div>';
+        '<div class="footer-mini">' + Layout.footerHtml('TOKOQIA KASIR') + '</div>';
 
       var chartBox = document.getElementById('dash-charts');
       if (chartBox) Modules.dashCharts.render(chartBox);
