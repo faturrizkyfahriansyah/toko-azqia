@@ -93,24 +93,30 @@ public class TokoqiaSppPlugin extends Plugin {
         }
     }
 
+    /**
+     * Mencoba beberapa cara menyambung (printer thermal murah tidak seragam): UUID standar, UUID tanpa pairing aman
+     * (insecure), lalu kanal RFCOMM 1 lewat refleksi. Jeda singkat antar percobaan supaya printer sempat melepas kanal lama.
+     */
     @SuppressLint("MissingPermission")
     private BluetoothSocket openSocket(BluetoothDevice device) throws IOException {
-        BluetoothSocket s = null;
-        try {
-            s = device.createRfcommSocketToServiceRecord(SPP_UUID);
-            s.connect();
-            return s;
-        } catch (IOException first) {
-            try { if (s != null) s.close(); } catch (IOException ignore) { }
-            // Cadangan untuk printer murah yang menolak UUID standar.
+        IOException first = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            BluetoothSocket s = null;
             try {
-                BluetoothSocket fb = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", int.class).invoke(device, 1);
-                fb.connect();
-                return fb;
-            } catch (Exception second) {
-                throw first;
+                if (attempt == 0) s = device.createRfcommSocketToServiceRecord(SPP_UUID);
+                else if (attempt == 1) s = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID);
+                else s = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", int.class).invoke(device, 1);
+                s.connect();
+                return s;
+            } catch (IOException e) {
+                if (first == null) first = e;
+                try { if (s != null) s.close(); } catch (IOException ignore) { }
+            } catch (Exception other) {
+                try { if (s != null) s.close(); } catch (IOException ignore) { }
             }
+            try { Thread.sleep(700); } catch (InterruptedException ie) { break; }
         }
+        throw (first != null ? first : new IOException("tidak bisa membuka kanal Bluetooth"));
     }
 
     @SuppressLint("MissingPermission")
@@ -121,7 +127,9 @@ public class TokoqiaSppPlugin extends Plugin {
             @Override
             public void run() {
                 try {
+                    boolean hadOld = socket != null;
                     closeQuietly();
+                    if (hadOld) { try { Thread.sleep(600); } catch (InterruptedException ie) { } } // beri waktu printer melepas sambungan lama
                     BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
                     if (adapter == null || !adapter.isEnabled()) { call.reject("Bluetooth mati. Nyalakan Bluetooth lalu coba lagi."); return; }
                     adapter.cancelDiscovery();

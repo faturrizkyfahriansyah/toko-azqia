@@ -10,6 +10,7 @@ import { BleClient } from '@capacitor-community/bluetooth-le';
 
 var platform = Capacitor.getPlatform();
 var isNative = Capacitor.isNativePlatform();
+if (isNative) document.documentElement.classList.add('in-app'); // memicu CSS khusus aplikasi (area aman status bar, sembunyikan tombol pasang)
 var Spp = registerPlugin('TokoqiaSpp'); // plugin Java: native-src/TokoqiaSppPlugin.java (hanya Android)
 
 var bleReady = null;

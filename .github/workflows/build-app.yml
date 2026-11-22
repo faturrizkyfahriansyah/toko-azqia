@@ -10,8 +10,14 @@ on:
         type: choice
         default: kasir
         options: [kasir, shop]
+      mode:
+        description: 'remote = langsung dari internet (pembaruan website otomatis, BAWAAN); bundled = semua di dalam aplikasi'
+        type: choice
+        default: remote
+        options: [remote, bundled]
 env:
   APP: ${{ inputs.app || 'kasir' }}
+  APP_MODE: ${{ inputs.mode || 'remote' }}
 jobs:
   android:
     runs-on: ubuntu-latest

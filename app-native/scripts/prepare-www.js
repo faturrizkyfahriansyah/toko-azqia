@@ -15,7 +15,7 @@ const ROOT = path.resolve(process.env.FRONTEND_DIR || path.join(__dirname, '..',
 const OUT = path.resolve(process.env.OUT_DIR || path.join(__dirname, '..', 'www'));
 const CFG_OUT = path.resolve(process.env.CONFIG_OUT || path.join(__dirname, '..', 'capacitor.config.json'));
 
-const FILES = ['index.html', 'staff.html', 'kasir.html', 'offline.html', 'manifest.json', 'manifest-kasir.json'];
+const FILES = ['version.json', 'index.html', 'staff.html', 'kasir.html', 'offline.html', 'manifest.json', 'manifest-kasir.json'];
 const DIRS = ['css', 'js', 'internal', 'shop', 'assets'];
 const REQUIRED = ['index.html', 'kasir.html', 'js/api.js', 'js/config.js', 'js/printer/nativeAdapter.js', 'internal/pos.js', 'css/style.css'];
 
@@ -39,7 +39,7 @@ let injected = 0;
   const p = path.join(OUT, f);
   if (!fs.existsSync(p)) return;
   let s = fs.readFileSync(p, 'utf8');
-  if (s.indexOf('bridge.bundle.js') >= 0) return;
+  if (s.indexOf(TAG.trim()) >= 0) return;
   if (s.indexOf(ANCHOR) < 0) { console.error('GAGAL: titik pasang tidak ditemukan di ' + f); process.exit(1); }
   s = s.replace(ANCHOR, TAG + ANCHOR);
   fs.writeFileSync(p, s);
@@ -52,6 +52,19 @@ const cfg = {
   webDir: 'www',
   server: { androidScheme: 'https' }
 };
+// Mode "langsung dari internet" (BAWAAN): aplikasi membuka website yang sama dari GitHub Pages, jadi setiap pembaruan website
+// langsung terpakai TANPA membangun/memasang APK baru. Salinan di www/ hanya cadangan (halaman offline). Jembatan cetak native
+// dimuat dari website (js/native/bridge.bundle.js, dibuat oleh deploy-native.sh). Mode "bundled": semua berkas di dalam aplikasi.
+const MODE = (process.env.APP_MODE || 'remote').toLowerCase();
+if (MODE !== 'remote' && MODE !== 'bundled') { console.error('GAGAL: APP_MODE harus "remote" atau "bundled", bukan "' + MODE + '".'); process.exit(1); }
+if (MODE === 'remote') {
+  const base = (process.env.REMOTE_URL || 'https://faturrizkyfahriansyah.github.io/toko-azqia/').replace(/\/*$/, '/');
+  if (!/^https:\/\//.test(base)) { console.error('GAGAL: REMOTE_URL harus diawali https://'); process.exit(1); }
+  cfg.server.url = base + (APP === 'kasir' ? 'kasir.html' : 'index.html');
+  cfg.server.cleartext = false;
+  cfg.server.allowNavigation = [new URL(base).hostname, 'script.google.com', 'script.googleusercontent.com'];
+  cfg.server.errorPath = 'offline.html';
+}
 fs.writeFileSync(CFG_OUT, JSON.stringify(cfg, null, 2) + '\n');
 fs.writeFileSync(path.join(OUT, 'native-build.json'), JSON.stringify({ app: APP, builtAt: new Date().toISOString() }) + '\n');
-console.log('www siap: app=' + APP + ', halaman dipasangi jembatan=' + injected + ', appId=' + cfg.appId);
+console.log('www siap: mode=' + MODE + (cfg.server.url ? ' (' + cfg.server.url + ')' : '') + ', app=' + APP + ', halaman dipasangi jembatan=' + injected + ', appId=' + cfg.appId);
