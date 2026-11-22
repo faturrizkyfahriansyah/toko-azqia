@@ -39,6 +39,28 @@ if (missing.length) {
 }
 console.log('Izin ditambahkan: ' + missing.length);
 
+// 1b) Ikon aplikasi = logo TOKOQIA/TOKO AZQIA (bawaan Capacitor adalah ikon umum). Ikon sudah dibuat di folder icons/ (semua kepadatan layar).
+// Adaptive icon memakai nama sumber daya milik kita sendiri (azqia_icon_*) agar tidak bergantung pada nama di templat Capacitor.
+const ICONS = path.join(__dirname, '..', 'icons'), RES = path.join(ANDROID, 'app', 'src', 'main', 'res');
+let iconCount = 0;
+if (fs.existsSync(ICONS)) {
+  fs.readdirSync(ICONS).filter(function (d) { return /^mipmap-/.test(d); }).forEach(function (d) {
+    const to = path.join(RES, d); fs.mkdirSync(to, { recursive: true });
+    fs.copyFileSync(path.join(ICONS, d, 'ic_launcher.png'), path.join(to, 'ic_launcher.png'));
+    fs.copyFileSync(path.join(ICONS, d, 'ic_launcher_round.png'), path.join(to, 'ic_launcher_round.png'));
+    fs.copyFileSync(path.join(ICONS, d, 'ic_launcher_foreground.png'), path.join(to, 'azqia_icon_fg.png'));
+    iconCount++;
+  });
+  const BG = (fs.readFileSync(path.join(ICONS, 'ic_launcher_background.xml'), 'utf8').match(/#[0-9A-Fa-f]{6}/) || ['#DD020A'])[0];
+  fs.mkdirSync(path.join(RES, 'values'), { recursive: true });
+  fs.writeFileSync(path.join(RES, 'values', 'azqia_icon.xml'), '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="azqia_icon_bg">' + BG + '</color>\n</resources>\n');
+  const adaptive = '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/azqia_icon_bg"/>\n    <foreground android:drawable="@mipmap/azqia_icon_fg"/>\n</adaptive-icon>\n';
+  fs.mkdirSync(path.join(RES, 'mipmap-anydpi-v26'), { recursive: true });
+  fs.writeFileSync(path.join(RES, 'mipmap-anydpi-v26', 'ic_launcher.xml'), adaptive);
+  fs.writeFileSync(path.join(RES, 'mipmap-anydpi-v26', 'ic_launcher_round.xml'), adaptive);
+}
+console.log('Ikon aplikasi dipasang: ' + iconCount + ' kepadatan layar');
+
 // 2) Plugin SPP + MainActivity (paket mengikuti appId)
 const javaDir = path.join(ANDROID, 'app', 'src', 'main', 'java', ...appId.split('.'));
 fs.mkdirSync(javaDir, { recursive: true });
